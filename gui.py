@@ -136,21 +136,16 @@ class Ui_group(object):
         self.optimize.setObjectName("mesh")
         self.left_layout.addWidget(self.optimize)
 
-        self.label_7 = QtWidgets.QLabel(parent=self.mesh)
-        self.label_7.setAlignment(QtCore.Qt.AlignLeft)
-        self.left_layout.addWidget(self.label_7)
-        self.label_7.setObjectName("label_7")
-        self.label_7.hide()
-
         self.run = QtWidgets.QPushButton(parent=self.groupBox)
         self.run.setGeometry(QtCore.QRect(20, 210, 271, 51))
         self.run.setObjectName("run")
 
-        self.field = QtWidgets.QComboBox(parent=self.centralwidget)
+        self.field = QtWidgets.QComboBox(parent=self.tab2)
         self.field.setEditable(False)
         self.field.setCurrentText("Pressure")
-        self.field.setDuplicatesEnabled(True)
+        self.field.setDuplicatesEnabled(False)
         self.field.setObjectName("field")
+        self.field.addItems(["Pressure", "Temperature", "Velocity"])
 
         group.setCentralWidget(self.centralwidget)
 
@@ -172,9 +167,7 @@ class Ui_group(object):
         self.generate.clicked.connect(self.show_run_box)
         self.generate.clicked.connect(self.airfoil)
         self.run.clicked.connect(self.sim)
-    def processing(self):
-        self.label_7.show()
-
+        self.field.activated.connect(self.show)
     def show_run_box(self):
         self.groupBox.show()  # Show the Run box after hitting generate
 
@@ -209,7 +202,6 @@ class Ui_group(object):
         self.label_4.setText(_translate("group", "(Degree)"))
         self.label_5.setText(_translate("group", "(K)"))
         self.label_6.setText(_translate("group", "(Pa)"))
-        self.label_7.setText(_translate("group", "Processing..."))
         self.run.setText(_translate("group", "RUN"))
 
     def inform(self):
@@ -227,16 +219,24 @@ class Ui_group(object):
             self.type.addItems(["NACA 63206", "NACA 63209"])
 
     def airfoil(self): #generate mesh and post-processing mesh
-        self.tab1.show_mesh(data=MeshGenerator.gen_mesh(code=MeshGenerator.naca_code(group=self.type_of_naca.currentText(),type=self.type.currentText()))["mesh_vtk"])
-        self.inform()
+        self.gen=MeshGenerator(group=self.type_of_naca.currentText(),type=self.type.currentText())
+        self.gen.mesh_generated.connect(self.on_mesh_generated)
+        self.gen.start()
+        self.inform
+    def on_mesh_generated(self, data):
+        self.data=data
+        self.tab1.show_mesh(data=self.data["mesh_vtk"])
 
     def sim(self): #run simulation
         code=MeshGenerator.naca_code(group=self.type_of_naca.currentText(),type=self.type.currentText())
         mesh_path = os.path.join(f'NACA_{code}', f"mesh_airfoil_{code}.su2" ) 
-        Init.initial_conditions(solver=self.solver.currentText(),mach=self.mach.text(),aoa=self.aoa.text(),temperature=self.temp.text(),pressure=self.pressure.text(), mesh_path=mesh_path, folder_name=f'NACA_{code}')
-        self.tab2.show(data=os.path.join(f'NACA_{code}', 'flow.vtu' ),field='Pressure',unit='(Pa)')
-        self.inform()
+        self.run=Init(solver=self.solver.currentText(),mach=self.mach.text(),aoa=self.aoa.text(),temperature=self.temp.text(),pressure=self.pressure.text(), mesh_path=mesh_path, folder_name=f'NACA_{code}')
+        self.run.start()
 
+    def show(self):
+        code=MeshGenerator.naca_code(group=self.type_of_naca.currentText(),type=self.type.currentText())
+        self.tab2.show(data=os.path.join(f'NACA_{code}', 'flow.vtu' ),field=self.field.currentText())
+    
 if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)
