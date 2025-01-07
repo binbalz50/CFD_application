@@ -27,10 +27,9 @@ class VisualizerWidget(QtWidgets.QWidget):
         self.plot.view_xy()
         self.plot.reset_camera()
 
-    def show(self,data,field,unit):
+    def show(self,data,field):
         result=pv.read(data)
         field_name=result[field]
         self.plot.clear()
-        self.plot.add_mesh(result, scalars=field_name, scalar_bar_args={'title': f"{field} {unit}" , 'vertical': True}, cmap='jet', show_scalar_bar=True)
+        self.plot.add_mesh(result, scalars=field_name, scalar_bar_args={'title': f"{field}" , 'vertical': False}, cmap='jet', show_scalar_bar=True)
         self.plot.view_xy()
-        self.plot.reset_camera()
