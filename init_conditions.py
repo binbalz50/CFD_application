@@ -1,25 +1,37 @@
 import os
 import subprocess
-from PyQt6 import QtWidgets
+from PyQt6.QtCore import QThread, pyqtSignal
 
-class Init():
+class Init(QThread):
+    inform=pyqtSignal(str)
+    def __init__(self,mesh_path,folder_name,solver,mach,aoa,temperature,pressure):
+        super().__init__()
+        self.mesh_path=mesh_path
+        self.folder_name=folder_name
+        self.solver=solver
+        self.mach=mach
+        self.aoa=aoa
+        self.temperature=temperature
+        self.pressure=pressure
+        self.config_path=os.path.join(self.folder_name,'config.cfg')
+        self.mesh_su2 = os.path.basename(self.mesh_path) #get file mesh.su2
+        self.config_file=os.path.basename(self.config_path) #get file config
+    
+    def run(self):
+        self.initial_conditions()
 
-    def initial_conditions(solver,mach,aoa,temperature,pressure,mesh_path,folder_name):
-        config_path=os.path.join(folder_name,'config.cfg')
-        result_path=os.path.join(folder_name,'flow.vtu')
-        mesh_su2 = os.path.basename(mesh_path) #get file mesh.su2
-        config_file=os.path.basename(config_path) #get file config
-        if not os.path.exists(config_path):
-            with open(config_path,'w') as f:
+    def initial_conditions(self):
+        if not os.path.exists(self.config_path):
+            with open(self.config_path,'w') as f:
                f.write(f"""
-SOLVER={solver}
+SOLVER={self.solver}
 MATH_PROBLEM= DIRECT
 RESTART_SOL= NO
-MACH_NUMBER={mach}
-AOA={aoa} 
+MACH_NUMBER={self.mach}
+AOA={self.aoa} 
 SIDESLIP_ANGLE= 0.0
-FREESTREAM_PRESSURE={pressure} 
-FREESTREAM_TEMPERATURE={temperature} 
+FREESTREAM_PRESSURE={self.pressure} 
+FREESTREAM_TEMPERATURE={self.temperature} 
 GAMMA_VALUE= 1.4
 GAS_CONSTANT= 287.87
 REF_ORIGIN_MOMENT_X = 0.25
@@ -71,7 +83,7 @@ CONV_STARTITER= 10
 CONV_CAUCHY_ELEMS= 100
 CONV_CAUCHY_EPS= 1E-6
 SCREEN_OUTPUT=(INNER_ITER, WALL_TIME, RMS_RES, LIFT, DRAG, CAUCHY_SENS_PRESS, CAUCHY_DRAG RMS_ADJ_DENSITY RMS_ADJ_ENERGY)
-MESH_FILENAME= {mesh_su2}
+MESH_FILENAME= {self.mesh_su2}
 MESH_FORMAT= SU2
 MESH_OUT_FILENAME= mesh_out.su2
 SOLUTION_FILENAME= solution_flow.dat
@@ -87,9 +99,6 @@ SURFACE_FILENAME= surface_flow
 SURFACE_ADJ_FILENAME= surface_adjoint
 OUTPUT_WRT_FREQ= 250
 OUTPUT_FILES= (RESTART, PARAVIEW, SURFACE_CSV)
-OPT_OBJECTIVE= DRAG * 0.001
-OPT_CONSTRAINT= ( LIFT > 0.328188 ) * 0.001; ( MOMENT_Z > 0.034068 ) * 0.001; ( AIRFOIL_THICKNESS > 0.11 ) * 0.001
-DEFINITION_DV= ( 30, 1.0 | airfoil | 0, 0.05 ); ( 30, 1.0 | airfoil | 0, 0.10 ); ( 30, 1.0 | airfoil | 0, 0.15 ); ( 30, 1.0 | airfoil | 0, 0.20 ); ( 30, 1.0 | airfoil | 0, 0.25 ); ( 30, 1.0 | airfoil | 0, 0.30 ); ( 30, 1.0 | airfoil | 0, 0.35 ); ( 30, 1.0 | airfoil | 0, 0.40 ); ( 30, 1.0 | airfoil | 0, 0.45 ); ( 30, 1.0 | airfoil | 0, 0.50 ); ( 30, 1.0 | airfoil | 0, 0.55 ); ( 30, 1.0 | airfoil | 0, 0.60 ); ( 30, 1.0 | airfoil | 0, 0.65 ); ( 30, 1.0 | airfoil | 0, 0.70 ); ( 30, 1.0 | airfoil | 0, 0.75 ); ( 30, 1.0 | airfoil | 0, 0.80 ); ( 30, 1.0 | airfoil | 0, 0.85 ); ( 30, 1.0 | airfoil | 0, 0.90 ); ( 30, 1.0 | airfoil | 0, 0.95 ); ( 30, 1.0 | airfoil | 1, 0.05 ); ( 30, 1.0 | airfoil | 1, 0.10 ); ( 30, 1.0 | airfoil | 1, 0.15 ); ( 30, 1.0 | airfoil | 1, 0.20 ); ( 30, 1.0 | airfoil | 1, 0.25 ); ( 30, 1.0 | airfoil | 1, 0.30 ); ( 30, 1.0 | airfoil | 1, 0.35 ); ( 30, 1.0 | airfoil | 1, 0.40 ); ( 30, 1.0 | airfoil | 1, 0.45 ); ( 30, 1.0 | airfoil | 1, 0.50 ); ( 30, 1.0 | airfoil | 1, 0.55 ); ( 30, 1.0 | airfoil | 1, 0.60 ); ( 30, 1.0 | airfoil | 1, 0.65 ); ( 30, 1.0 | airfoil | 1, 0.70 ); ( 30, 1.0 | airfoil | 1, 0.75 ); ( 30, 1.0 | airfoil | 1, 0.80 ); ( 30, 1.0 | airfoil | 1, 0.85 ); ( 30, 1.0 | airfoil | 1, 0.90 ); ( 30, 1.0 | airfoil | 1, 0.95 )
-                            """)    
-                          
-        subprocess.run(['SU2_CFD', config_file],check=True,cwd=folder_name) #run su2
+""")    
+            # Đảm bảo gọi đúng đường dẫn tuyệt đối tới config
+        subprocess.run(['SU2_CFD', self.config_file], check=True, cwd=self.folder_name)
