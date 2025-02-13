@@ -26,6 +26,8 @@ class VisualizerWidget(QtWidgets.QWidget):
         self.plot.add_mesh(mesh, show_edges=True, color="white", line_width=1)
         self.plot.view_xy()
         self.plot.reset_camera()
+        self.plot.camera.zoom(1.3)
+        self.plot.screenshot("mesh.png",window_size=[1080, 1080])
 
     def show(self,data,field):
         result=pv.read(data)
