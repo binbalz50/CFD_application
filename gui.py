@@ -12,6 +12,7 @@ from cris_mesh import MeshGenerator
 from visual import *
 from init_conditions import Init
 import os
+from report import report
 
 
 class Ui_group(object):
@@ -50,8 +51,13 @@ class Ui_group(object):
         self.left_layout.addWidget(self.mesh)
 
         self.generate = QtWidgets.QPushButton(parent=self.mesh)
-        self.generate.setGeometry(QtCore.QRect(20, 210, 271, 51))
+        self.generate.setGeometry(QtCore.QRect(20, 210, 271, 50))
         self.generate.setObjectName("generate")
+
+        self.report = QtWidgets.QPushButton(parent=self.mesh)
+        self.report.setGeometry(QtCore.QRect(300, 210, 70, 50))
+        self.report.setObjectName("report")
+        self.report.hide()
 
         self.type_of_naca = QtWidgets.QComboBox(parent=self.mesh)
         self.type_of_naca.setGeometry(QtCore.QRect(20, 50, 271, 31))
@@ -166,10 +172,15 @@ class Ui_group(object):
         # Connect the Generate button to show the Run box
         self.generate.clicked.connect(self.show_run_box)
         self.generate.clicked.connect(self.airfoil)
+        self.report.clicked.connect(self.export_report)
         self.run.clicked.connect(self.sim)
         self.field.activated.connect(self.show)
     def show_run_box(self):
         self.groupBox.show()  # Show the Run box after hitting generate
+        self.report.show()
+    
+    def export_report(self):
+        self.baocao=report.doc(self)
 
     def retranslateUi(self, group):
         _translate = QtCore.QCoreApplication.translate
@@ -177,6 +188,7 @@ class Ui_group(object):
 
         self.mesh.setTitle(_translate("group", "Mesh"))
         self.generate.setText(_translate("group", "GENERATE"))
+        self.report.setText(_translate("group", "REPORT"))
         self.type_of_naca.setItemText(0, _translate("group", "NACA 4 digit"))
         self.type_of_naca.setItemText(1, _translate("group", "NACA 5 digit"))
         self.type_of_naca.setItemText(2, _translate("group", "Others"))
