@@ -1,5 +1,6 @@
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import *
+from PyQt6.QtCore import Qt
 from pyvistaqt import QtInteractor
 import pyvista as pv
 
@@ -20,18 +21,21 @@ class VisualizerWidget(QtWidgets.QWidget):
         # Optionally set some settings for the plotter
         self.plot.set_background('white')
 
-    def show_mesh(self,data):
+    def show_mesh(self,data,code):
         mesh=pv.read(data)
         self.plot.clear()
         self.plot.add_mesh(mesh, show_edges=True, color="white", line_width=1)
         self.plot.view_xy()
         self.plot.reset_camera()
         self.plot.camera.zoom(1.3)
-        self.plot.screenshot("mesh.png",window_size=[1080, 1080])
+        self.plot.screenshot(rf"NACA_{code}\NACA_{code}_mesh.png",window_size=[1920, 1080])
 
-    def show(self,data,field):
+    def show(self,data,field,code):
         result=pv.read(data)
         field_name=result[field]
         self.plot.clear()
         self.plot.add_mesh(result, scalars=field_name, scalar_bar_args={'title': f"{field}" , 'vertical': False}, cmap='jet', show_scalar_bar=True)
         self.plot.view_xy()
+        self.plot.camera.zoom(1.3)
+        self.plot.screenshot(rf"NACA_{code}\NACA_{code}_{field}.png",window_size=[1080, 1080])
+
