@@ -29,8 +29,8 @@ class MeshGenerator(QThread):
         else:
             shutil.rmtree(folder_name)
             os.makedirs(folder_name)
-        subprocess.run(['gmshairfoil2d', '--format', 'vtk', '--naca', self.code, '--output', folder_name, '--farfield', '10'], check=True) 
-        subprocess.run(['gmshairfoil2d', '--format', 'su2', '--naca', self.code, '--output', folder_name, '--farfield', '10'], check=True)
+        subprocess.run(['gmshairfoil2d', '--format', 'vtk', '--naca', self.code, '--output', folder_name, '--farfield', '10', '--ext_mesh_size', '0.5'], check=True) 
+        subprocess.run(['gmshairfoil2d', '--format', 'su2', '--naca', self.code, '--output', folder_name, '--farfield', '10', '--ext_mesh_size', '0.5'], check=True)
         mesh_vtk=os.path.join(folder_name, f'mesh_airfoil_{self.code}.vtk')
         mesh_su2=os.path.join(folder_name, f'mesh_airfoil_{self.code}.su2')
         if os.path.exists(mesh_vtk) and os.path.exists(mesh_su2) and os.path.exists(folder_name):
@@ -43,8 +43,9 @@ class MeshGenerator(QThread):
             msg=QtWidgets.QMessageBox()
             msg.setWindowFlags(msg.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
             msg.setInformativeText('Failed!')
-            msg.exec() 
+            msg.exec()
 
+    
         
         
         
