@@ -12,7 +12,8 @@ from cris_mesh import MeshGenerator
 from visual import *
 from init_conditions import Init
 import os
-from report import report
+from report import *
+import re
 
 
 class Ui_group(object):
@@ -171,16 +172,38 @@ class Ui_group(object):
 
         # Connect the Generate button to show the Run box
         self.generate.clicked.connect(self.show_run_box)
+        self.generate.clicked.connect(self.progress_bar)
         self.generate.clicked.connect(self.airfoil)
         self.report.clicked.connect(self.export_report)
         self.run.clicked.connect(self.sim)
+        self.run.clicked.connect(self.progress_bar)
         self.field.activated.connect(self.show)
+
     def show_run_box(self):
         self.groupBox.show()  # Show the Run box after hitting generate
         self.report.show()
     
     def export_report(self):
-        self.baocao=report.doc(self)
+        code=MeshGenerator.naca_code(group=self.type_of_naca.currentText(),type=self.type.currentText())
+        self.export = export(mach=self.mach.text(), 
+                             aoa=self.aoa.text(), 
+                             temp=self.temp.text(), 
+                             pressure=self.pressure.text(), 
+                             data=self.type.currentText(), 
+                             csv_path=rf"NACA_{code}\history.csv", 
+                             mesh_path=rf"NACA_{code}\NACA_{code}_mesh.png",
+                             field_path=rf"NACA_{code}\NACA_{code}_{self.field.currentText()}.png",
+                             plot_path=rf"NACA_{code}\plot.png",
+                             )
+        self.inform()
+
+    def progress_bar(self):
+        # Tạo progress bar
+        self.progress = QtWidgets.QProgressBar()
+        self.progress.setMinimum(0)
+        self.progress.setMaximum(0)
+        self.statusbar.addPermanentWidget(self.progress)  # Thêm vào status bar
+
 
     def retranslateUi(self, group):
         _translate = QtCore.QCoreApplication.translate
@@ -234,21 +257,27 @@ class Ui_group(object):
         self.gen=MeshGenerator(group=self.type_of_naca.currentText(),type=self.type.currentText())
         self.gen.mesh_generated.connect(self.on_mesh_generated)
         self.gen.start()
-        self.inform
+        self.gen.finished.connect(self.inform)
+        self.gen.finished.connect(lambda: self.progress.hide())
+        self.gen.finished.connect(lambda: self.tabs.setCurrentIndex(0)) 
+        self.gen.finished.connect(lambda: self.tab1.show_mesh(data=self.data["mesh_vtk"],code=''.join(re.findall(r'\d+', self.type.currentText()))))
     def on_mesh_generated(self, data):
         self.data=data
-        self.tab1.show_mesh(data=self.data["mesh_vtk"])
+        self.tab1.show_mesh(data=self.data["mesh_vtk"],code=''.join(re.findall(r'\d+', self.type.currentText()))) #Viết lại ngắn gọn đoạn này
 
     def sim(self): #run simulation
         code=MeshGenerator.naca_code(group=self.type_of_naca.currentText(),type=self.type.currentText())
         mesh_path = os.path.join(f'NACA_{code}', f"mesh_airfoil_{code}.su2" ) 
         self.run=Init(solver=self.solver.currentText(),mach=self.mach.text(),aoa=self.aoa.text(),temperature=self.temp.text(),pressure=self.pressure.text(), mesh_path=mesh_path, folder_name=f'NACA_{code}')
         self.run.start()
-
+        self.run.finished.connect(self.inform)
+        self.run.finished.connect(lambda: self.progress.hide())
+        self.run.finished.connect(lambda: self.tabs.setCurrentIndex(1)) 
+        self.run.finished.connect(lambda: self.tab2.show(data=os.path.join(f'NACA_{code}', 'flow.vtu' ),field="Pressure", code=''.join(re.findall(r'\d+', self.type.currentText()))))
     def show(self):
         code=MeshGenerator.naca_code(group=self.type_of_naca.currentText(),type=self.type.currentText())
-        self.tab2.show(data=os.path.join(f'NACA_{code}', 'flow.vtu' ),field=self.field.currentText())
-    
+        self.tab2.show(data=os.path.join(f'NACA_{code}', 'flow.vtu'), field=self.field.currentText(), code=''.join(re.findall(r'\d+', self.type.currentText())))
+ 
 if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)
