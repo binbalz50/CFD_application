@@ -8,9 +8,10 @@
 
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtCore import Qt
-from cris_mesh import MeshGenerator
+from mesh import MeshGenerator
 from visual import *
 from init_conditions import Init
+from realTimeAeroCoeffsUpdate import MatplotlibWidget
 import os
 from report import *
 import re
@@ -36,13 +37,15 @@ class Ui_group(object):
         # Tạo các VisualizerWidget làm nội dung cho từng tab
         self.tab1 = VisualizerWidget(self.centralwidget)
         self.tab2 = VisualizerWidget(self.centralwidget)
+        self.tab3 = MatplotlibWidget(self.centralwidget)
  
         # Thêm tab1 và tab2 vào QTabWidget
         self.tabs.addTab(self.tab1, "Mesh")
         self.tabs.addTab(self.tab2, "Results")
+        self.tabs.addTab(self.tab3, "Residuals")
 
         # Thêm QTabWidget vào layout chính
-        self.main_layout.addWidget(self.tabs, 3)
+        self.main_layout.addWidget(self.tabs, 4)
 
         # Mesh box (generate section)
         self.mesh = QtWidgets.QGroupBox(parent=self.centralwidget)
@@ -142,6 +145,7 @@ class Ui_group(object):
         self.optimize.setCheckable(False)
         self.optimize.setObjectName("mesh")
         self.left_layout.addWidget(self.optimize)
+        self.optimize.hide()
 
         self.run = QtWidgets.QPushButton(parent=self.groupBox)
         self.run.setGeometry(QtCore.QRect(20, 210, 271, 51))
@@ -153,6 +157,8 @@ class Ui_group(object):
         self.field.setDuplicatesEnabled(False)
         self.field.setObjectName("field")
         self.field.addItems(["Pressure", "Temperature", "Velocity"])
+
+        self.res=MatplotlibWidget()
 
         group.setCentralWidget(self.centralwidget)
 
@@ -171,17 +177,16 @@ class Ui_group(object):
         QtCore.QMetaObject.connectSlotsByName(group)
 
         # Connect the Generate button to show the Run box
-        self.generate.clicked.connect(self.show_run_box)
+        self.generate.clicked.connect(lambda: self.groupBox.show())
         self.generate.clicked.connect(self.progress_bar)
         self.generate.clicked.connect(self.airfoil)
         self.report.clicked.connect(self.export_report)
         self.run.clicked.connect(self.sim)
         self.run.clicked.connect(self.progress_bar)
+        self.run.clicked.connect(lambda: self.report.show())
+        self.run.clicked.connect(self.residuals)
         self.field.activated.connect(self.show)
 
-    def show_run_box(self):
-        self.groupBox.show()  # Show the Run box after hitting generate
-        self.report.show()
     
     def export_report(self):
         code=MeshGenerator.naca_code(group=self.type_of_naca.currentText(),type=self.type.currentText())
@@ -252,20 +257,19 @@ class Ui_group(object):
         elif group == "NACA 5 digit":
             self.type.clear()
             self.type.addItems(["NACA 63206", "NACA 63209"])
-
+    
     def airfoil(self): #generate mesh and post-processing mesh
         self.gen=MeshGenerator(group=self.type_of_naca.currentText(),type=self.type.currentText())
-        self.gen.mesh_generated.connect(self.on_mesh_generated)
+        self.gen.mesh_generated.connect(self.on_mesh_generated) #Transmit mesh file data
         self.gen.start()
         self.gen.finished.connect(self.inform)
         self.gen.finished.connect(lambda: self.progress.hide())
         self.gen.finished.connect(lambda: self.tabs.setCurrentIndex(0)) 
-        self.gen.finished.connect(lambda: self.tab1.show_mesh(data=self.data["mesh_vtk"],code=''.join(re.findall(r'\d+', self.type.currentText()))))
-    def on_mesh_generated(self, data):
+        self.gen.finished.connect(lambda: self.tab1.show_mesh(data=self.data["mesh_vtk"], code=''.join(re.findall(r'\d+', self.type.currentText()))))
+    def on_mesh_generated(self, data): #Create plug for data from mesh_generated 
         self.data=data
-        self.tab1.show_mesh(data=self.data["mesh_vtk"],code=''.join(re.findall(r'\d+', self.type.currentText()))) #Viết lại ngắn gọn đoạn này
 
-    def sim(self): #run simulation
+    def sim(self): #Run simulation
         code=MeshGenerator.naca_code(group=self.type_of_naca.currentText(),type=self.type.currentText())
         mesh_path = os.path.join(f'NACA_{code}', f"mesh_airfoil_{code}.su2" ) 
         self.run=Init(solver=self.solver.currentText(),mach=self.mach.text(),aoa=self.aoa.text(),temperature=self.temp.text(),pressure=self.pressure.text(), mesh_path=mesh_path, folder_name=f'NACA_{code}')
@@ -273,10 +277,16 @@ class Ui_group(object):
         self.run.finished.connect(self.inform)
         self.run.finished.connect(lambda: self.progress.hide())
         self.run.finished.connect(lambda: self.tabs.setCurrentIndex(1)) 
-        self.run.finished.connect(lambda: self.tab2.show(data=os.path.join(f'NACA_{code}', 'flow.vtu' ),field="Pressure", code=''.join(re.findall(r'\d+', self.type.currentText()))))
+        self.run.finished.connect(self.show)
     def show(self):
         code=MeshGenerator.naca_code(group=self.type_of_naca.currentText(),type=self.type.currentText())
         self.tab2.show(data=os.path.join(f'NACA_{code}', 'flow.vtu'), field=self.field.currentText(), code=''.join(re.findall(r'\d+', self.type.currentText())))
+
+    def residuals(self):
+        self.tab3.pro(history_file_path=os.path.basename(os.path.join(f'NACA_{''.join(re.findall(r'\d+', self.type.currentText()))}', 'history.csv')),
+                                  config_path= os.path.basename(os.path.join(f'NACA_{''.join(re.findall(r'\d+', self.type.currentText()))}', 'config.cfg')))
+        self.tab3.read_history()
+        self.tab3.update_plot()
  
 if __name__ == "__main__":
     import sys
