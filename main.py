@@ -24,27 +24,27 @@ class Ui_group(object):
         self.centralwidget = QtWidgets.QWidget(parent=group)
         self.centralwidget.setObjectName("centralwidget")
 
-        # Main horizontal layout for 1:3 ratio
+        # Main layout 
         self.main_layout = QtWidgets.QHBoxLayout(self.centralwidget)
         
-        # Left side - Input box layout (1 part)
+        # Left side - Input box layout 
         self.left_layout = QtWidgets.QVBoxLayout()
         self.main_layout.addLayout(self.left_layout, 1)  # 1 part for input boxes
 
-        # Right side - VisualizerWidget (3 parts)
+        # Right side - VisualizerWidget 
         self.tabs = QTabWidget(self.centralwidget)  # Tạo QTabWidget với parent là centralwidget
 
         # Tạo các VisualizerWidget làm nội dung cho từng tab
         self.tab1 = VisualizerWidget(self.centralwidget)
         self.tab2 = VisualizerWidget(self.centralwidget)
-        self.tab3 = MatplotlibWidget(self.centralwidget)
+        self.tab3=MatplotlibWidget(self.centralwidget)
  
         # Thêm tab1 và tab2 vào QTabWidget
         self.tabs.addTab(self.tab1, "Mesh")
         self.tabs.addTab(self.tab2, "Results")
         self.tabs.addTab(self.tab3, "Residuals")
 
-        # Thêm QTabWidget vào layout chính
+        # Thêm QTabWidget vào layout chính (1 part cho box, 4 part cho visual)
         self.main_layout.addWidget(self.tabs, 4)
 
         # Mesh box (generate section)
@@ -53,16 +53,19 @@ class Ui_group(object):
         self.mesh.setCheckable(False)
         self.mesh.setObjectName("mesh")
         self.left_layout.addWidget(self.mesh)
-
+        
+        # Nút GENERATE
         self.generate = QtWidgets.QPushButton(parent=self.mesh)
         self.generate.setGeometry(QtCore.QRect(20, 210, 271, 50))
         self.generate.setObjectName("generate")
-
+        
+        # Nút REPORT
         self.report = QtWidgets.QPushButton(parent=self.mesh)
         self.report.setGeometry(QtCore.QRect(300, 210, 70, 50))
         self.report.setObjectName("report")
         self.report.hide()
-
+        
+        # Box chọn loại airfoil
         self.type_of_naca = QtWidgets.QComboBox(parent=self.mesh)
         self.type_of_naca.setGeometry(QtCore.QRect(20, 50, 271, 31))
         self.type_of_naca.setEditable(True)
@@ -70,12 +73,19 @@ class Ui_group(object):
         self.type_of_naca.addItem("")
         self.type_of_naca.addItem("")
 
+        # Box chọn tên airfoil
         self.type = QtWidgets.QComboBox(parent=self.mesh)
         self.type.setGeometry(QtCore.QRect(20, 130, 271, 31))
         self.type.setEditable(True)
         self.type.setCurrentText("")
         self.type.setDuplicatesEnabled(False)
         self.type.setObjectName("type")
+        
+        # Box chọn loại airfoil do người dùng nhập
+        self.type_line = QtWidgets.QLineEdit(parent=self.mesh)
+        self.type_line.setGeometry(self.type.geometry())
+        self.type_line.setObjectName("type_line")
+        self.type_line.hide()
 
         self.type_of_naca.currentTextChanged.connect(self.airfoil_type)
 
@@ -87,11 +97,11 @@ class Ui_group(object):
         self.label_2.setGeometry(QtCore.QRect(30, 110, 71, 16))
         self.label_2.setObjectName("label_2")
 
-        # Run box (hidden initially)
+        # Hộp thoại điều kiện ban đầu
         self.groupBox = QtWidgets.QGroupBox(parent=self.centralwidget)
         self.groupBox.setObjectName("groupBox")
         self.left_layout.addWidget(self.groupBox)
-        self.groupBox.hide()  # Hide the groupBox initially
+        self.groupBox.hide()  # Ẩn đi khi tạo lưới
 
         self.mach = QtWidgets.QLineEdit(parent=self.groupBox)
         self.mach.setGeometry(QtCore.QRect(20, 90, 211, 22))
@@ -139,7 +149,8 @@ class Ui_group(object):
         self.label_6 = QtWidgets.QLabel(parent=self.groupBox)
         self.label_6.setGeometry(QtCore.QRect(240, 180, 49, 21))
         self.label_6.setObjectName("label_6")
-
+  
+        # Box optimize
         self.optimize = QtWidgets.QGroupBox(parent=self.centralwidget)
         self.optimize.setFlat(False)
         self.optimize.setCheckable(False)
@@ -147,10 +158,12 @@ class Ui_group(object):
         self.left_layout.addWidget(self.optimize)
         self.optimize.hide()
 
+        # Nút RUN
         self.run = QtWidgets.QPushButton(parent=self.groupBox)
         self.run.setGeometry(QtCore.QRect(20, 210, 271, 51))
         self.run.setObjectName("run")
 
+        # Các trường quan sát trong tab 2
         self.field = QtWidgets.QComboBox(parent=self.tab2)
         self.field.setEditable(False)
         self.field.setCurrentText("Pressure")
@@ -162,11 +175,7 @@ class Ui_group(object):
 
         group.setCentralWidget(self.centralwidget)
 
-        self.menubar = QtWidgets.QMenuBar(parent=group)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 1902, 33))
-        self.menubar.setObjectName("menubar")
-        group.setMenuBar(self.menubar)
-
+        # Thanh trạng thái khi chạy các quá trình
         self.statusbar = QtWidgets.QStatusBar(parent=group)
         self.statusbar.setObjectName("statusbar")
         group.setStatusBar(self.statusbar)
@@ -176,7 +185,7 @@ class Ui_group(object):
         self.retranslateUi(group)
         QtCore.QMetaObject.connectSlotsByName(group)
 
-        # Connect the Generate button to show the Run box
+        # Kết nối các nút với chức năng
         self.generate.clicked.connect(lambda: self.groupBox.show())
         self.generate.clicked.connect(self.progress_bar)
         self.generate.clicked.connect(self.airfoil)
@@ -184,11 +193,10 @@ class Ui_group(object):
         self.run.clicked.connect(self.sim)
         self.run.clicked.connect(self.progress_bar)
         self.run.clicked.connect(lambda: self.report.show())
-        self.run.clicked.connect(self.residuals)
         self.field.activated.connect(self.show)
 
     
-    def export_report(self):
+    def export_report(self): # Xuất báo cáo 
         code=MeshGenerator.naca_code(group=self.type_of_naca.currentText(),type=self.type.currentText())
         self.export = export(mach=self.mach.text(), 
                              aoa=self.aoa.text(), 
@@ -202,7 +210,7 @@ class Ui_group(object):
                              )
         self.inform()
 
-    def progress_bar(self):
+    def progress_bar(self): #Định nghĩa thanh tiến trình 
         # Tạo progress bar
         self.progress = QtWidgets.QProgressBar()
         self.progress.setMinimum(0)
@@ -210,7 +218,7 @@ class Ui_group(object):
         self.statusbar.addPermanentWidget(self.progress)  # Thêm vào status bar
 
 
-    def retranslateUi(self, group):
+    def retranslateUi(self, group): #Đặt tên cho các item 
         _translate = QtCore.QCoreApplication.translate
         group.setWindowTitle(_translate("group", "Airfoil CFD Simulation"))
 
@@ -244,21 +252,23 @@ class Ui_group(object):
         self.label_6.setText(_translate("group", "(Pa)"))
         self.run.setText(_translate("group", "RUN"))
 
-    def inform(self):
+    def inform(self): #Box thông báo sau khi hoàn thành
         msg=QtWidgets.QMessageBox()
         msg.setWindowFlags(msg.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
         msg.setInformativeText('Success!')
         msg.exec()
         
-    def airfoil_type(self, group): #select airfoil type 
+    def airfoil_type(self, group): #Chọn loại airfoil
         if group == "NACA 4 digit":
             self.type.clear()
             self.type.addItems(["NACA 0012", "NACA 2412"])
         elif group == "NACA 5 digit":
             self.type.clear()
             self.type.addItems(["NACA 63206", "NACA 63209"])
+        elif group == "Others":
+            self.type_line.clear()
     
-    def airfoil(self): #generate mesh and post-processing mesh
+    def airfoil(self): #Generate and post-processing mesh
         self.gen=MeshGenerator(group=self.type_of_naca.currentText(),type=self.type.currentText())
         self.gen.mesh_generated.connect(self.on_mesh_generated) #Transmit mesh file data
         self.gen.start()
@@ -281,12 +291,11 @@ class Ui_group(object):
     def show(self):
         code=MeshGenerator.naca_code(group=self.type_of_naca.currentText(),type=self.type.currentText())
         self.tab2.show(data=os.path.join(f'NACA_{code}', 'flow.vtu'), field=self.field.currentText(), code=''.join(re.findall(r'\d+', self.type.currentText())))
+        self.residuals()
 
-    def residuals(self):
-        self.tab3.pro(history_file_path=os.path.basename(os.path.join(f'NACA_{''.join(re.findall(r'\d+', self.type.currentText()))}', 'history.csv')),
-                                  config_path= os.path.basename(os.path.join(f'NACA_{''.join(re.findall(r'\d+', self.type.currentText()))}', 'config.cfg')))
-        self.tab3.read_history()
-        self.tab3.update_plot()
+    def residuals(self):#Plot đồ thị thể hiện tiến trình hội tụ 
+        self.tab3.path(history_file_path=os.path.join(f'NACA_{''.join(re.findall(r'\d+', self.type.currentText()))}', 'history.csv'))      
+        self.tab3.update_plot()                      
  
 if __name__ == "__main__":
     import sys
