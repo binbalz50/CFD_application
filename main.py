@@ -7,6 +7,7 @@
 
 
 from PyQt6 import QtCore, QtWidgets
+from PyQt6.QtGui import QPalette, QBrush, QPixmap
 from PyQt6.QtCore import Qt
 from mesh import MeshGenerator
 from visual import *
@@ -16,13 +17,32 @@ import os
 from report import *
 import re
 
-
+def resource_path(relative_path):
+    if hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath("."), relative_path)
 class Ui_group(object):
     def setupUi(self, group):
         group.setObjectName("group")
         group.resize(1920, 1080)
         self.centralwidget = QtWidgets.QWidget(parent=group)
         self.centralwidget.setObjectName("centralwidget")
+        
+        #Ảnh cho app
+        palette = QPalette()
+        pixmap = QPixmap(resource_path("pic/pic.jpg"))
+        palette.setBrush(QPalette.ColorRole.Window, QBrush(pixmap))
+        self.centralwidget.setAutoFillBackground(True)
+        self.centralwidget.setPalette(palette)
+
+        self.centralwidget.setStyleSheet("""
+            QWidget {
+            background-image: url(pic/pic1.jpg);
+            background-repeat: no-repeat;
+            background-position: center;
+            background-attachment: fixed;
+            }
+             """)
 
         # Main layout 
         self.main_layout = QtWidgets.QHBoxLayout(self.centralwidget)
@@ -37,7 +57,7 @@ class Ui_group(object):
         # Tạo các VisualizerWidget làm nội dung cho từng tab
         self.tab1 = VisualizerWidget(self.centralwidget)
         self.tab2 = VisualizerWidget(self.centralwidget)
-        self.tab3=MatplotlibWidget(self.centralwidget)
+        self.tab3 = MatplotlibWidget(self.centralwidget)
  
         # Thêm tab1 và tab2 vào QTabWidget
         self.tabs.addTab(self.tab1, "Mesh")
@@ -70,6 +90,7 @@ class Ui_group(object):
         self.type_of_naca.setGeometry(QtCore.QRect(20, 50, 271, 31))
         self.type_of_naca.setEditable(True)
         self.type_of_naca.setObjectName("type_of_naca")
+        self.type_of_naca.addItem("")
         self.type_of_naca.addItem("")
         self.type_of_naca.addItem("")
 
@@ -252,6 +273,14 @@ class Ui_group(object):
         self.label_6.setText(_translate("group", "(Pa)"))
         self.run.setText(_translate("group", "RUN"))
 
+        # Danh sách các airfoil có sẵn
+        airfoils = ["NACA 0012", "NACA 2412", "NACA 63206", "NACA 63209"]
+
+        # Tạo completer và gán vào QLineEdit
+        completer = QCompleter(airfoils)
+        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)  # Không phân biệt hoa/thường
+        self.type_line.setCompleter(completer)
+
     def inform(self): #Box thông báo sau khi hoàn thành
         msg=QtWidgets.QMessageBox()
         msg.setWindowFlags(msg.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
@@ -260,13 +289,22 @@ class Ui_group(object):
         
     def airfoil_type(self, group): #Chọn loại airfoil
         if group == "NACA 4 digit":
+            self.type.show()
             self.type.clear()
             self.type.addItems(["NACA 0012", "NACA 2412"])
         elif group == "NACA 5 digit":
+            self.type.show()
             self.type.clear()
             self.type.addItems(["NACA 63206", "NACA 63209"])
         elif group == "Others":
-            self.type_line.clear()
+            self.type.hide()
+            self.type_line.show()
+            # Danh sách các airfoil có sẵn có trong database
+            airfoils = ["NACA 0010", "NACA 2345", "NACA JQKA", "NACA 6868"]
+            # Tạo completer và gán vào QLineEdit
+            completer = QCompleter(airfoils)
+            completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)  # Không phân biệt hoa/thường
+            self.type_line.setCompleter(completer)
     
     def airfoil(self): #Generate and post-processing mesh
         self.gen=MeshGenerator(group=self.type_of_naca.currentText(),type=self.type.currentText())
