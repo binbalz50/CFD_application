@@ -17,18 +17,21 @@ import os
 from report import *
 import re
 
+
 def resource_path(relative_path):
     if hasattr(sys, "_MEIPASS"):
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.abspath("."), relative_path)
+
+
 class Ui_group(object):
     def setupUi(self, group):
         group.setObjectName("group")
         group.resize(1920, 1080)
         self.centralwidget = QtWidgets.QWidget(parent=group)
         self.centralwidget.setObjectName("centralwidget")
-        
-        #Ảnh cho app
+
+        # Ảnh cho app
         palette = QPalette()
         pixmap = QPixmap(resource_path("pic/pic.jpg"))
         palette.setBrush(QPalette.ColorRole.Window, QBrush(pixmap))
@@ -44,21 +47,23 @@ class Ui_group(object):
             }
              """)
 
-        # Main layout 
+        # Main layout
         self.main_layout = QtWidgets.QHBoxLayout(self.centralwidget)
-        
-        # Left side - Input box layout 
-        self.left_layout = QtWidgets.QVBoxLayout()
-        self.main_layout.addLayout(self.left_layout, 1)  # 1 part for input boxes
 
-        # Right side - VisualizerWidget 
-        self.tabs = QTabWidget(self.centralwidget)  # Tạo QTabWidget với parent là centralwidget
+        # Left side - Input box layout
+        self.left_layout = QtWidgets.QVBoxLayout()
+        # 1 part for input boxes
+        self.main_layout.addLayout(self.left_layout, 1)
+
+        # Right side - VisualizerWidget
+        # Tạo QTabWidget với parent là centralwidget
+        self.tabs = QTabWidget(self.centralwidget)
 
         # Tạo các VisualizerWidget làm nội dung cho từng tab
         self.tab1 = VisualizerWidget(self.centralwidget)
         self.tab2 = VisualizerWidget(self.centralwidget)
         self.tab3 = MatplotlibWidget(self.centralwidget)
- 
+
         # Thêm tab1 và tab2 vào QTabWidget
         self.tabs.addTab(self.tab1, "Mesh")
         self.tabs.addTab(self.tab2, "Results")
@@ -73,18 +78,18 @@ class Ui_group(object):
         self.mesh.setCheckable(False)
         self.mesh.setObjectName("mesh")
         self.left_layout.addWidget(self.mesh)
-        
+
         # Nút GENERATE
         self.generate = QtWidgets.QPushButton(parent=self.mesh)
         self.generate.setGeometry(QtCore.QRect(20, 210, 271, 50))
         self.generate.setObjectName("generate")
-        
+
         # Nút REPORT
         self.report = QtWidgets.QPushButton(parent=self.mesh)
         self.report.setGeometry(QtCore.QRect(300, 210, 70, 50))
         self.report.setObjectName("report")
         self.report.hide()
-        
+
         # Box chọn loại airfoil
         self.type_of_naca = QtWidgets.QComboBox(parent=self.mesh)
         self.type_of_naca.setGeometry(QtCore.QRect(20, 50, 271, 31))
@@ -101,7 +106,7 @@ class Ui_group(object):
         self.type.setCurrentText("")
         self.type.setDuplicatesEnabled(False)
         self.type.setObjectName("type")
-        
+
         # Box chọn loại airfoil do người dùng nhập
         self.type_line = QtWidgets.QLineEdit(parent=self.mesh)
         self.type_line.setGeometry(self.type.geometry())
@@ -170,7 +175,7 @@ class Ui_group(object):
         self.label_6 = QtWidgets.QLabel(parent=self.groupBox)
         self.label_6.setGeometry(QtCore.QRect(240, 180, 49, 21))
         self.label_6.setObjectName("label_6")
-  
+
         # Box optimize
         self.optimize = QtWidgets.QGroupBox(parent=self.centralwidget)
         self.optimize.setFlat(False)
@@ -184,6 +189,76 @@ class Ui_group(object):
         self.run.setGeometry(QtCore.QRect(20, 210, 271, 51))
         self.run.setObjectName("run")
 
+        # Box optimize ======================================================================
+
+        # Thêm khối Optimization vào giao diện
+        self.optimize = QtWidgets.QGroupBox(parent=self.centralwidget)
+        self.optimize.setFlat(False)
+        self.optimize.setCheckable(False)
+        self.optimize.setObjectName("optimize")
+        self.left_layout.addWidget(self.optimize)
+        self.optimize.hide()  # Ẩn đi khi tạo lưới
+        # Loại Design Variable (dvkind)
+        # Tên
+        self.label_dvkind = QtWidgets.QLabel(parent=self.optimize)
+        self.label_dvkind.setGeometry(QtCore.QRect(20, 30, 150, 20))
+        # Ô chọn
+        self.dvkind = QtWidgets.QComboBox(parent=self.optimize)
+        self.dvkind.setGeometry(QtCore.QRect(20, 50, 211, 31))
+        self.dvkind.setEditable(False)
+        self.dvkind.setObjectName("dvkind")
+        self.dvkind.addItem("")
+        self.dvkind.addItem("")
+        #
+        # Số lượng Design Variables (Tạm thời yêu cầu lấy số chẵn (Đều 2 mặt) - Lẻ mặt trên dưới để sau làm thêm)
+        # Tên
+        self.label_dvnumber = QtWidgets.QLabel(parent=self.optimize)
+        self.label_dvnumber.setGeometry(QtCore.QRect(20, 80, 150, 20))
+        # Ô điền
+        self.dvnumber = QtWidgets.QLineEdit(parent=self.optimize)
+        self.dvnumber.setGeometry(QtCore.QRect(20, 100, 211, 22))
+        self.dvnumber.setText("")
+        self.dvnumber.setObjectName("dvnumber")
+        #
+        # Thông số cần tối ưu (Optimization objective) (opt_object)
+        # Tên
+        self.label_opt_object = QtWidgets.QLabel(parent=self.optimize)
+        self.label_opt_object.setGeometry(QtCore.QRect(20, 130, 180, 20))
+        # Ô chọn
+        self.opt_object = QtWidgets.QComboBox(parent=self.optimize)
+        self.opt_object.setGeometry(QtCore.QRect(20, 150, 211, 31))
+        self.opt_object.setEditable(False)
+        self.opt_object.setObjectName("opt_object")
+        self.opt_object.addItem("")
+        self.opt_object.addItem("")
+        #
+        # Tham số cố định (Optimization constraint) (opt_const)
+        # Tên
+        self.label_opt_const_type = QtWidgets.QLabel(parent=self.optimize)
+        self.label_opt_const_type.setGeometry(QtCore.QRect(20, 180, 180, 20))
+        # Ô chọn
+        # Có chọn Optimization constraint hay không ?
+        self.opt_const_type = QtWidgets.QComboBox(parent=self.optimize)
+        self.opt_const_type.setGeometry(QtCore.QRect(20, 200, 211, 31))
+        self.opt_const_type.setObjectName("opt_const_type")
+        # Multi-select Optimization constraint
+        self.opt_const_list = QtWidgets.QListWidget(parent=self.optimize)
+        self.opt_const_list.setGeometry(QtCore.QRect(20, 250, 211, 100))
+        self.opt_const_list.setSelectionMode(
+            QtWidgets.QAbstractItemView.SelectionMode.MultiSelection)
+        self.opt_const_list.hide()  # Ẩn lúc chưa chọn opt_const_type là select value
+        self.opt_const_type.currentTextChanged.connect(
+            self.toggle_constraint_list)  # Ẩn/Hiện box chọn tham số cố định
+        #
+        # Nút Run Optimize
+        self.optimize_button = QtWidgets.QPushButton(parent=self.optimize)
+        self.optimize_button.setGeometry(QtCore.QRect(20, 360, 211, 40))
+        self.optimize_button.setObjectName("optimize_button")
+        self.optimize_button.clicked.connect(
+            self.run_optimization)  # Kết nối nút với chức năng
+
+        # Box optimize (end) ==================================================================
+
         # Các trường quan sát trong tab 2
         self.field = QtWidgets.QComboBox(parent=self.tab2)
         self.field.setEditable(False)
@@ -192,7 +267,7 @@ class Ui_group(object):
         self.field.setObjectName("field")
         self.field.addItems(["Pressure", "Temperature", "Velocity"])
 
-        self.res=MatplotlibWidget()
+        self.res = MatplotlibWidget()
 
         group.setCentralWidget(self.centralwidget)
 
@@ -216,30 +291,29 @@ class Ui_group(object):
         self.run.clicked.connect(lambda: self.report.show())
         self.field.activated.connect(self.show)
 
-    
-    def export_report(self): # Xuất báo cáo 
-        code=MeshGenerator.naca_code(group=self.type_of_naca.currentText(),type=self.type.currentText())
-        self.export = export(mach=self.mach.text(), 
-                             aoa=self.aoa.text(), 
-                             temp=self.temp.text(), 
-                             pressure=self.pressure.text(), 
-                             data=self.type.currentText(), 
-                             csv_path=rf"NACA_{code}\history.csv", 
+    def export_report(self):  # Xuất báo cáo
+        code = MeshGenerator.naca_code(
+            group=self.type_of_naca.currentText(), type=self.type.currentText())
+        self.export = export(mach=self.mach.text(),
+                             aoa=self.aoa.text(),
+                             temp=self.temp.text(),
+                             pressure=self.pressure.text(),
+                             data=self.type.currentText(),
+                             csv_path=rf"NACA_{code}\history.csv",
                              mesh_path=rf"NACA_{code}\NACA_{code}_mesh.png",
                              field_path=rf"NACA_{code}\NACA_{code}_{self.field.currentText()}.png",
                              plot_path=rf"NACA_{code}\plot.png",
                              )
         self.inform()
 
-    def progress_bar(self): #Định nghĩa thanh tiến trình 
+    def progress_bar(self):  # Định nghĩa thanh tiến trình
         # Tạo progress bar
         self.progress = QtWidgets.QProgressBar()
         self.progress.setMinimum(0)
         self.progress.setMaximum(0)
         self.statusbar.addPermanentWidget(self.progress)  # Thêm vào status bar
 
-
-    def retranslateUi(self, group): #Đặt tên cho các item 
+    def retranslateUi(self, group):  # Đặt tên cho các item
         _translate = QtCore.QCoreApplication.translate
         group.setWindowTitle(_translate("group", "Airfoil CFD Simulation"))
 
@@ -278,16 +352,51 @@ class Ui_group(object):
 
         # Tạo completer và gán vào QLineEdit
         completer = QCompleter(airfoils)
-        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)  # Không phân biệt hoa/thường
+        # Không phân biệt hoa/thường
+        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         self.type_line.setCompleter(completer)
 
-    def inform(self): #Box thông báo sau khi hoàn thành
-        msg=QtWidgets.QMessageBox()
-        msg.setWindowFlags(msg.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
+        # Box optimize ===========================================================
+
+        # Tên box Optimization
+        self.optimize.setTitle(_translate("group", "Optimization"))
+        #
+        # Item của Optimize
+        # Item trong box Design Variable kind
+        self.label_dvkind.setText("Design Variable kind:")  # Tên box
+        self.dvkind.setItemText(0, _translate("group", "HICKS_HENNE"))
+        self.dvkind.setItemText(1, _translate("group", "FFD_SETTING"))
+        #
+        # Số lượng Design Variable
+        self.label_dvnumber.setText("DV Number (even number):")  # Tên box
+        #
+        # Item trong box Optimization objective
+        self.label_opt_object.setText("Optimization objective:")  # Tên box
+        self.opt_object.setItemText(0, _translate("group", "LIFT"))
+        self.opt_object.setItemText(1, _translate("group", "DRAG"))
+        #
+        # Item trong box Optimization constraint
+        self.label_opt_const_type.setText(
+            "Optimization constraint:")  # Tên box
+        # Có chọn Optimization constraint hay không ?
+        self.opt_const_type.addItems(["NONE", "Select value"])
+        # Multi-select Optimization constraint
+        self.opt_const_list.addItems(
+            ["LIFT", "DRAG", "MOMENT_Z", "AIRFOIL_THICKNESS"])
+        #
+        # Nút Run Optimize
+        self.optimize_button.setText("OPTIMIZE")
+
+        # Box optimize (end) =====================================================
+
+    def inform(self):  # Box thông báo sau khi hoàn thành
+        msg = QtWidgets.QMessageBox()
+        msg.setWindowFlags(msg.windowFlags() |
+                           Qt.WindowType.WindowStaysOnTopHint)
         msg.setInformativeText('Success!')
         msg.exec()
-        
-    def airfoil_type(self, group): #Chọn loại airfoil
+
+    def airfoil_type(self, group):  # Chọn loại airfoil
         if group == "NACA 4 digit":
             self.type.show()
             self.type.clear()
@@ -303,38 +412,154 @@ class Ui_group(object):
             airfoils = ["NACA 0010", "NACA 2345", "NACA JQKA", "NACA 6868"]
             # Tạo completer và gán vào QLineEdit
             completer = QCompleter(airfoils)
-            completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)  # Không phân biệt hoa/thường
+            # Không phân biệt hoa/thường
+            completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
             self.type_line.setCompleter(completer)
-    
-    def airfoil(self): #Generate and post-processing mesh
-        self.gen=MeshGenerator(group=self.type_of_naca.currentText(),type=self.type.currentText())
-        self.gen.mesh_generated.connect(self.on_mesh_generated) #Transmit mesh file data
+
+    def airfoil(self):  # Generate and post-processing mesh
+        self.gen = MeshGenerator(
+            group=self.type_of_naca.currentText(), type=self.type.currentText())
+        self.gen.mesh_generated.connect(
+            self.on_mesh_generated)  # Transmit mesh file data
         self.gen.start()
         self.gen.finished.connect(self.inform)
         self.gen.finished.connect(lambda: self.progress.hide())
-        self.gen.finished.connect(lambda: self.tabs.setCurrentIndex(0)) 
-        self.gen.finished.connect(lambda: self.tab1.show_mesh(data=self.data["mesh_vtk"], code=''.join(re.findall(r'\d+', self.type.currentText()))))
-    def on_mesh_generated(self, data): #Create plug for data from mesh_generated 
-        self.data=data
+        # Hiện Optimize lên khi tạo lưới xong
+        self.gen.finished.connect(lambda: self.optimize.show())
+        self.gen.finished.connect(lambda: self.tabs.setCurrentIndex(0))
+        self.gen.finished.connect(lambda: self.tab1.show_mesh(
+            data=self.data["mesh_vtk"], code=''.join(re.findall(r'\d+', self.type.currentText()))))
 
-    def sim(self): #Run simulation
-        code=MeshGenerator.naca_code(group=self.type_of_naca.currentText(),type=self.type.currentText())
-        mesh_path = os.path.join(f'NACA_{code}', f"mesh_airfoil_{code}.su2" ) 
-        self.run=Init(solver=self.solver.currentText(),mach=self.mach.text(),aoa=self.aoa.text(),temperature=self.temp.text(),pressure=self.pressure.text(), mesh_path=mesh_path, folder_name=f'NACA_{code}')
+    def on_mesh_generated(self, data):  # Create plug for data from mesh_generated
+        self.data = data
+
+    def sim(self):  # Run simulation
+        code = MeshGenerator.naca_code(
+            group=self.type_of_naca.currentText(), type=self.type.currentText())
+        mesh_path = os.path.join(f'NACA_{code}', f"mesh_airfoil_{code}.su2")
+        self.run = Init(solver=self.solver.currentText(), mach=self.mach.text(), aoa=self.aoa.text(
+        ), temperature=self.temp.text(), pressure=self.pressure.text(), mesh_path=mesh_path, folder_name=f'NACA_{code}')
         self.run.start()
         self.run.finished.connect(self.inform)
         self.run.finished.connect(lambda: self.progress.hide())
-        self.run.finished.connect(lambda: self.tabs.setCurrentIndex(1)) 
+        self.run.finished.connect(lambda: self.tabs.setCurrentIndex(1))
         self.run.finished.connect(self.show)
+
     def show(self):
-        code=MeshGenerator.naca_code(group=self.type_of_naca.currentText(),type=self.type.currentText())
-        self.tab2.show(data=os.path.join(f'NACA_{code}', 'flow.vtu'), field=self.field.currentText(), code=''.join(re.findall(r'\d+', self.type.currentText())))
+        code = MeshGenerator.naca_code(
+            group=self.type_of_naca.currentText(), type=self.type.currentText())
+        self.tab2.show(data=os.path.join(f'NACA_{code}', 'flow.vtu'), field=self.field.currentText(
+        ), code=''.join(re.findall(r'\d+', self.type.currentText())))
         self.residuals()
 
-    def residuals(self):#Plot đồ thị thể hiện tiến trình hội tụ 
-        self.tab3.path(history_file_path=os.path.join(f'NACA_{''.join(re.findall(r'\d+', self.type.currentText()))}', 'history.csv'))      
-        self.tab3.update_plot()                      
- 
+    def residuals(self):  # Plot đồ thị thể hiện tiến trình hội tụ
+        self.tab3.path(history_file_path=os.path.join(
+            f'NACA_{''.join(re.findall(r'\d+', self.type.currentText()))}', 'history.csv'))
+        self.tab3.update_plot()
+
+    # Box optimize ===========================================================
+
+    # Ẩn/Hiện box chọn tham số cố định
+    def toggle_constraint_list(self, text):
+        if text == "Select value":
+            self.opt_const_list.show()
+        else:
+            self.opt_const_list.hide()
+    #
+    # Thực thi tiến trình tối ưu sau khi nhấn nút "OPTIMIZE"
+
+    def run_optimization(self):
+        # Khởi động quá trình tối ưu hóa:
+        # 0) Kiểm tra dv_number trước khi bắt đầu
+        # 1) Thiết lập đường dẫn
+        # 2) Thu thập input từ GUI
+        # 3) Khởi tạo và cấu hình luồng OptInit
+        # 4) Kết nối signal và bắt đầu thread
+        #
+        # 0) Kiểm tra dv_number trước khi bắt đầu
+        dv_number_str = self.dvnumber.text().strip()
+        try:
+            dv_number = int(dv_number_str)
+        except ValueError:
+            QtWidgets.QMessageBox.warning(
+                self.optimize,                      # parent widget
+                "Invalid DV Number",                # title
+                "Please enter a valid integer for DV Number.\n"
+                "E.g., 4, 6, 8, 10, …"              # ví dụ
+            )
+            return
+
+        if dv_number < 2 or dv_number % 2 != 0:
+            QtWidgets.QMessageBox.warning(
+                self.optimize,
+                "Invalid DV Number",
+                "Please choose an even number (>= 2) for DV Number.\n"
+                "E.g., 4, 6, 8, 10, …"
+            )
+            return
+        # 1) Xác định paths dựa trên NACA <code> và file mesh đã sinh
+        code = MeshGenerator.naca_code(
+            group=self.type_of_naca.currentText(),
+            type=self.type.currentText()
+        )
+        mesh_path = os.path.join(f'NACA_{code}', f"mesh_airfoil_{code}.su2")
+        folder_name = f'NACA_{code}'
+
+        # 2) Thu thập tham số tối ưu từ GUI
+        dv_kind = self.dvkind.currentText()                  # HICKS_HENNE / FFD_SETTING
+        # Số lượng DV (even)
+        dv_number = int(self.dvnumber.text() or "0")
+        opt_object = self.opt_object.currentText()              # LIFT / DRAG
+        opt_const_type = self.opt_const_type.currentText()          # NONE / Select value
+        if opt_const_type == "Select value":
+            # Đổi qua biến opt_const_list để đổi kiểu dữ liệu list
+            opt_const_list = [item.text()
+                              for item in self.opt_const_list.selectedItems()]
+        else:
+            opt_const_list = []                                    # không ràng buộc
+
+        # 3) Khởi tạo luồng tối ưu (OptInit trong init_opt_conditions.py)
+        from init_opt_conditions import OptInit
+        self.opt_thread = OptInit(
+            mesh_path=mesh_path,
+            folder_name=folder_name,
+            mach=self.mach.text(),
+            aoa=self.aoa.text(),
+            temperature=self.temp.text(),
+            pressure=self.pressure.text(),
+            dv_kind=dv_kind,
+            dv_number=dv_number,
+            opt_object=opt_object,
+            opt_const_type=opt_const_type,
+            opt_const_list=opt_const_list,
+            # Để ở đây để khi nào cần thêm vào GUI cho chỉnh sửa / thiết đặt thì sài
+            solver="EULER",
+            opt_iterations=100,
+            opt_accuracy=1e-10,
+            opt_bound_upper=0.1,
+            opt_bound_lower=-0.1
+        )
+
+        # 4) Kết nối các signal để UI phản hồi
+        self.opt_thread.inform.connect(self.inform)  # hiện popup Success!
+        self.opt_thread.finished.connect(lambda:
+                                         self.statusbar.showMessage("Optimization complete"))
+        # Hiển thị progress bar nếu muốn
+        self.progress_bar()
+
+        # 5) Bắt đầu thread
+        self.opt_thread.start()
+        # cfg_path = self.opt_thread.initial_conditions()
+        # QtWidgets.QMessageBox.information(
+        #    self.optimize,
+        #    "Config Generated",
+        #    f"Config file has been created at:\n{cfg_path}"
+        # )
+        # return
+
+    # Box optimize (end) ========================================================
+
+
 if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)
