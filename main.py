@@ -28,22 +28,18 @@ class Ui_group(object):
         self.centralwidget = QtWidgets.QWidget(parent=group)
         self.centralwidget.setObjectName("centralwidget")
         
-        #Ảnh cho app
+        #Ảnh nền cho app
         palette = QPalette()
-        pixmap = QPixmap(resource_path("pic/pic.jpg"))
-        palette.setBrush(QPalette.ColorRole.Window, QBrush(pixmap))
-        self.centralwidget.setAutoFillBackground(True)
-        self.centralwidget.setPalette(palette)
-
-        self.centralwidget.setStyleSheet("""
-            QWidget {
-            background-image: url(pic/pic1.jpg);
-            background-repeat: no-repeat;
-            background-position: center;
-            background-attachment: fixed;
-            }
-             """)
-
+        pixmap = QPixmap(resource_path("pic/pic1.png"))
+        scaled_pixmap = pixmap.scaled( # Scale ảnh theo kích thước group
+        group.size(),
+        Qt.AspectRatioMode.IgnoreAspectRatio,
+        Qt.TransformationMode.SmoothTransformation
+        )
+        palette.setBrush(QPalette.ColorRole.Window, QBrush(scaled_pixmap))
+        group.setAutoFillBackground(True)
+        group.setPalette(palette)
+        
         # Main layout 
         self.main_layout = QtWidgets.QHBoxLayout(self.centralwidget)
         
@@ -63,89 +59,301 @@ class Ui_group(object):
         self.tabs.addTab(self.tab1, "Mesh")
         self.tabs.addTab(self.tab2, "Results")
         self.tabs.addTab(self.tab3, "Residuals")
+        self.tabs.setStyleSheet("""
+                                     QTabWidget::pane {
+                                     border: none;
+                                     }
+                                     QTabBar::tab {
+                                     background-color: rgba(255, 255, 255, 120);  /* Nền của các tab */
+                                     color: black;             /* Màu chữ của tab */
+                                     padding: 5px;
+                                     border-radius: 10px;
+                                     margin-top: 25px;             /* Khoảng cách nội dung trong tab */  /* Viền màu xám nhạt */     
+                                     }
+                                     QTabBar::tab:selected {
+                                     background-color: white;  /* Nền trắng khi tab được chọn */
+                                     color: black;              /* Màu chữ khi tab được chọn */
+                                     }
+                                     QTabBar::tab:hover {
+                                     background-color: rgba(255, 255, 255, 200);  /* Nền sáng hơn khi di chuột */
+                                     border: none;
+                                     }
+                                     """)
 
-        # Thêm QTabWidget vào layout chính (1 part cho box, 4 part cho visual)
-        self.main_layout.addWidget(self.tabs, 4)
+        # Thêm QTabWidget vào layout chính (1 part cho box, 5 part cho visual)
+        self.main_layout.addWidget(self.tabs, 5)
 
         # Mesh box (generate section)
         self.mesh = QtWidgets.QGroupBox(parent=self.centralwidget)
         self.mesh.setFlat(False)
         self.mesh.setCheckable(False)
         self.mesh.setObjectName("mesh")
+        self.mesh.setStyleSheet("""
+                                QGroupBox {
+                                background-color: rgba(255, 255, 255, 100);  /* Nền trắng */
+                                border: 1px solid gray;   /* Viền xung quanh */ 
+                                border-radius: 10px         /* Khoảng cách phía trên */
+                                }                              
+                                QGroupBox::title {
+                                subcontrol-origin: margin;
+                                subcontrol-position: top left;
+                                padding: 5px 10px;
+                                background-color: rgba(255, 255, 255, 170);  /* Nền trắng cho tiêu đề */
+                                color: black;  /* Màu chữ của tiêu đề */    
+                                border-top-left-radius: 10px;                       
+                                }
+                                """)
+
+  
+       # 3. Tạo QTabWidget bên trong GroupBox
+        self.mesh_tabs = QtWidgets.QTabWidget()
+        self.mesh_tabs.setStyleSheet("""
+                                     QTabWidget::pane {
+                                     border: none;
+                                     }
+                                     QTabBar::tab {
+                                     background-color: rgba(255, 255, 255, 120);  /* Nền của các tab */
+                                     color: black;             /* Màu chữ của tab */
+                                     padding: 5px;
+                                     border-radius: 10px;
+                                     margin-top: 25px;             /* Khoảng cách nội dung trong tab */  /* Viền màu xám nhạt */     
+                                     }
+                                     QTabBar::tab:selected {
+                                     background-color: white;  /* Nền trắng khi tab được chọn */
+                                     color: black;              /* Màu chữ khi tab được chọn */
+                                     }
+                                     QTabBar::tab:hover {
+                                     background-color: rgba(255, 255, 255, 200);  /* Nền sáng hơn khi di chuột */
+                                     border: none;
+                                     }
+                                     """)
         self.left_layout.addWidget(self.mesh)
-        
+
+        # 4. Tạo tab 1: Cấu hình lưới
+        self.mesh_tab = QtWidgets.QWidget()
+        self.mesh_layout = QtWidgets.QVBoxLayout(self.mesh_tab)
+
+        # 5. Tạo tab 2: Hiển thị lưới
+        self.refine_tab = QtWidgets.QWidget()
+        self.refine_layout = QtWidgets.QVBoxLayout(self.refine_tab)
+
+        # 6. Thêm 2 tab vào QTabWidget
+        self.mesh_tabs.addTab(self.mesh_tab, "Model")
+        self.mesh_tabs.addTab(self.refine_tab, "Refinement")
+        self.mesh_tabs.setTabVisible(1,False)
+
+        # 7. Thêm GroupBox vào layout chính
+        self.layout = QtWidgets.QVBoxLayout(self.mesh)
+        self.layout.addWidget(self.mesh_tabs)
+
+        # Tạo radio buttons
+        self.radio_inviscid = QtWidgets.QRadioButton("Inviscid", parent=self.mesh_tab)
+        self.radio_turbulent = QtWidgets.QRadioButton("Turbulent", parent= self.mesh_tab)
+        self.radio_inviscid.setChecked(True)
+        self.radio_turbulent.setGeometry(QtCore.QRect(120, 110, 100, 50))
+        self.radio_inviscid.setGeometry(QtCore.QRect(20, 110, 100, 50))
+        self.radio_turbulent.toggled.connect(self.updateTabVisibility)
+        self.radio_inviscid.toggled.connect(self.updateTabVisibility)
+
+
         # Nút GENERATE
-        self.generate = QtWidgets.QPushButton(parent=self.mesh)
-        self.generate.setGeometry(QtCore.QRect(20, 210, 271, 50))
+        self.generate = QtWidgets.QPushButton(parent=self.mesh_tab)
+        self.generate.setGeometry(QtCore.QRect(10, 150, 200, 50))
         self.generate.setObjectName("generate")
+        self.generate.setStyleSheet("""
+            QPushButton {
+                background-color: white;
+                font-size: 16px;
+                color: black;
+            }
+        """)
         
         # Nút REPORT
-        self.report = QtWidgets.QPushButton(parent=self.mesh)
-        self.report.setGeometry(QtCore.QRect(300, 210, 70, 50))
+        self.report = QtWidgets.QPushButton(parent=self.mesh_tab)
+        self.report.setGeometry(QtCore.QRect(215, 150, 70, 50))
         self.report.setObjectName("report")
         self.report.hide()
         
         # Box chọn loại airfoil
-        self.type_of_naca = QtWidgets.QComboBox(parent=self.mesh)
-        self.type_of_naca.setGeometry(QtCore.QRect(20, 50, 271, 31))
+        self.type_of_naca = QtWidgets.QComboBox(parent=self.mesh_tab)
+        self.type_of_naca.setGeometry(QtCore.QRect(10, 30, 200, 30))
         self.type_of_naca.setEditable(True)
         self.type_of_naca.setObjectName("type_of_naca")
+        self.type_of_naca.setStyleSheet("""
+                                QComboBox{
+                                background-color: white;  /* Nền trắng */
+                                border: 1px solid gray;   /* Viền xung quanh */
+                                border-radius: 5px;
+                                padding: 5px;
+                                }
+                                """)
         self.type_of_naca.addItem("")
         self.type_of_naca.addItem("")
         self.type_of_naca.addItem("")
 
         # Box chọn tên airfoil
-        self.type = QtWidgets.QComboBox(parent=self.mesh)
-        self.type.setGeometry(QtCore.QRect(20, 130, 271, 31))
+        self.type = QtWidgets.QComboBox(parent=self.mesh_tab)
+        self.type.setGeometry(QtCore.QRect(10, 90, 200, 30))
         self.type.setEditable(True)
         self.type.setCurrentText("")
         self.type.setDuplicatesEnabled(False)
         self.type.setObjectName("type")
+        self.type.setStyleSheet("""
+                                QComboBox{
+                                background-color: white;  /* Nền trắng */
+                                border: 1px solid gray;   /* Viền xung quanh */
+                                border-radius: 5px;
+                                padding: 5px;
+                                }
+                                """)
         
         # Box chọn loại airfoil do người dùng nhập
-        self.type_line = QtWidgets.QLineEdit(parent=self.mesh)
+        self.type_line = QtWidgets.QLineEdit(parent=self.mesh_tab)
         self.type_line.setGeometry(self.type.geometry())
         self.type_line.setObjectName("type_line")
+        self.type_line.setStyleSheet("")
         self.type_line.hide()
 
         self.type_of_naca.currentTextChanged.connect(self.airfoil_type)
 
-        self.label = QtWidgets.QLabel(parent=self.mesh)
-        self.label.setGeometry(QtCore.QRect(30, 30, 81, 16))
-        self.label.setObjectName("label")
+        self.label = QtWidgets.QLabel(parent=self.mesh_tab)
+        self.label.setGeometry(QtCore.QRect(10, 10, 81, 16))
+        self.label.setObjectName("select group")
 
-        self.label_2 = QtWidgets.QLabel(parent=self.mesh)
-        self.label_2.setGeometry(QtCore.QRect(30, 110, 71, 16))
-        self.label_2.setObjectName("label_2")
+        self.label_2 = QtWidgets.QLabel(parent=self.mesh_tab)
+        self.label_2.setGeometry(QtCore.QRect(20, 70, 71, 16))
+        self.label_2.setObjectName("select airfoil")
+
+        # Tab tính toán wall spacing
+        self.input = QtWidgets.QLabel(parent=self.refine_tab)
+        self.input.setGeometry(QtCore.QRect(0, 0, 70, 20))
+        self.input.setText("Input")
+
+        self.ouput = QtWidgets.QLabel(parent=self.refine_tab)
+        self.ouput.setGeometry(QtCore.QRect(155, 0, 70, 20))
+        self.ouput.setText("Output")
+
+        self.mach1 = QtWidgets.QLineEdit(parent=self.refine_tab)
+        self.mach1.setGeometry(QtCore.QRect(0, 20, 120, 25))
+        self.mach1.setObjectName("velocity")
+        self.mach1.setPlaceholderText("Mach number")
+
+        self.temperature = QtWidgets.QLineEdit(parent=self.refine_tab)
+        self.temperature.setGeometry(QtCore.QRect(0, 60, 120, 25))
+        self.temperature.setObjectName("temperature")
+        self.temperature.setPlaceholderText("Temperature")
+
+        self.density = QtWidgets.QLineEdit(parent=self.refine_tab)
+        self.density.setGeometry(QtCore.QRect(0, 100, 120, 25))
+        self.density.setObjectName("density")
+        self.density.setPlaceholderText("Freestresm density")
+
+        self.dyn_viscousity = QtWidgets.QLineEdit(parent=self.refine_tab)
+        self.dyn_viscousity.setGeometry(QtCore.QRect(0, 140, 120, 25))
+        self.dyn_viscousity.setObjectName("velocity")
+        self.dyn_viscousity.setPlaceholderText("Dynamic viscosity")
+
+        self.ref_length = QtWidgets.QLineEdit(parent=self.refine_tab)
+        self.ref_length.setGeometry(QtCore.QRect(0, 180, 120, 25))
+        self.ref_length.setObjectName("velocity")
+        self.ref_length.setPlaceholderText("Reference length")
+
+        self.y_plus = QtWidgets.QLineEdit(parent=self.refine_tab)
+        self.y_plus.setGeometry(QtCore.QRect(0, 220, 120, 25))
+        self.y_plus.setObjectName("velocity")
+        self.y_plus.setPlaceholderText("Desired y+")
+
+        self.wall = QtWidgets.QLineEdit(parent=self.refine_tab)
+        self.wall.setGeometry(QtCore.QRect(155, 20, 120, 25))
+        self.wall.setObjectName("velocity")
+        self.wall.setPlaceholderText("Wall spacing")
+
+        self.Re = QtWidgets.QLineEdit(parent=self.refine_tab)
+        self.Re.setGeometry(QtCore.QRect(155, 60, 120, 25))
+        self.Re.setObjectName("velocity")
+        self.Re.setPlaceholderText("Reynolds number")
+
+        self.cal = QtWidgets.QPushButton(parent=self.refine_tab)
+        self.cal.setGeometry(QtCore.QRect(180, 100, 70, 40))
+        self.cal.setText("COMPUTE")
 
         # Hộp thoại điều kiện ban đầu
         self.groupBox = QtWidgets.QGroupBox(parent=self.centralwidget)
         self.groupBox.setObjectName("groupBox")
         self.left_layout.addWidget(self.groupBox)
         self.groupBox.hide()  # Ẩn đi khi tạo lưới
+        self.groupBox.setStyleSheet("""
+                                    QGroupBox {
+                                    background-color: rgba(255, 255, 255, 100);  /* Nền trắng */
+                                    border: 1px solid gray;   /* Viền xung quanh */
+                                    border-radius: 10px;
+                                    }                                
+                                    QGroupBox::title {
+                                    subcontrol-origin: margin;
+                                    subcontrol-position: top left;
+                                    padding: 5px 10px;
+                                    background-color: rgba(255, 255, 255, 170);  /* Nền trắng cho tiêu đề */
+                                    color: black;  /* Màu chữ của tiêu đề */
+                                    font: bold 30px;  /* Kiểu chữ đậm, kích thước 16px */    
+                                    border-top-left-radius: 10px;                       
+                                    }
+                                    """)
+        
 
         self.mach = QtWidgets.QLineEdit(parent=self.groupBox)
-        self.mach.setGeometry(QtCore.QRect(20, 90, 211, 22))
+        self.mach.setGeometry(QtCore.QRect(20, 90, 200, 25))
         self.mach.setText("")
+        self.mach.setStyleSheet("""
+                                QLineEdit{
+                                background-color: white;  /* Nền trắng */
+                                border: 1px solid gray;   /* Viền xung quanh */
+                                border-radius: 5px;
+                                padding: 5px;
+                                }
+                                """)
         self.mach.setObjectName("mach")
 
         self.aoa = QtWidgets.QLineEdit(parent=self.groupBox)
-        self.aoa.setGeometry(QtCore.QRect(20, 120, 211, 22))
+        self.aoa.setGeometry(QtCore.QRect(20, 120, 200, 25))
         self.aoa.setText("")
+        self.aoa.setStyleSheet("""
+                                QLineEdit{
+                                background-color: white;  /* Nền trắng */
+                                border: 1px solid gray;   /* Viền xung quanh */
+                                border-radius: 5px;
+                                padding: 5px;
+                                }
+                                """)
         self.aoa.setObjectName("aoa")
 
         self.temp = QtWidgets.QLineEdit(parent=self.groupBox)
-        self.temp.setGeometry(QtCore.QRect(20, 150, 211, 22))
+        self.temp.setGeometry(QtCore.QRect(20, 150, 200, 25))
         self.temp.setText("")
+        self.temp.setStyleSheet("""
+                                QLineEdit{
+                                background-color: white;  /* Nền trắng */
+                                border: 1px solid gray;   /* Viền xung quanh */
+                                border-radius: 5px;
+                                padding: 5px;
+                                }
+                                """)
         self.temp.setObjectName("temp")
 
         self.pressure = QtWidgets.QLineEdit(parent=self.groupBox)
-        self.pressure.setGeometry(QtCore.QRect(20, 180, 211, 22))
+        self.pressure.setGeometry(QtCore.QRect(20, 180, 200, 25))
         self.pressure.setText("")
+        self.pressure.setStyleSheet("""
+                                QLineEdit{
+                                background-color: white;  /* Nền trắng */
+                                border: 1px solid gray;   /* Viền xung quanh */
+                                border-radius: 5px;
+                                padding: 5px;
+                                }
+                                """)
         self.pressure.setObjectName("pressure")
 
         self.solver = QtWidgets.QComboBox(parent=self.groupBox)
-        self.solver.setGeometry(QtCore.QRect(20, 50, 211, 31))
+        self.solver.setGeometry(QtCore.QRect(20, 55, 200, 30))
         self.solver.setEditable(False)
         self.solver.setObjectName("solver")
         self.solver.addItem("")
@@ -154,43 +362,222 @@ class Ui_group(object):
         self.solver.addItem("")
         self.solver.addItem("")
         self.solver.addItem("")
+        self.solver.setStyleSheet("""
+                                QComboBox{
+                                background-color: white;  /* Nền trắng */
+                                border: 1px solid gray;   /* Viền xung quanh */
+                                border-radius: 5px;
+                                padding: 5px;
+                                }
+                                """)
 
         self.label_3 = QtWidgets.QLabel(parent=self.groupBox)
-        self.label_3.setGeometry(QtCore.QRect(20, 30, 51, 20))
-        self.label_3.setObjectName("label_3")
+        self.label_3.setGeometry(QtCore.QRect(25, 35, 50, 25))
+        self.label_3.setObjectName("solver")
 
         self.label_4 = QtWidgets.QLabel(parent=self.groupBox)
-        self.label_4.setGeometry(QtCore.QRect(240, 120, 49, 21))
-        self.label_4.setObjectName("label_4")
+        self.label_4.setGeometry(QtCore.QRect(230, 120, 50, 25))
+        self.label_4.setObjectName("degree")
 
         self.label_5 = QtWidgets.QLabel(parent=self.groupBox)
-        self.label_5.setGeometry(QtCore.QRect(240, 150, 49, 21))
-        self.label_5.setObjectName("label_5")
+        self.label_5.setGeometry(QtCore.QRect(230, 150, 50, 25))
+        self.label_5.setObjectName("(K)")
 
         self.label_6 = QtWidgets.QLabel(parent=self.groupBox)
-        self.label_6.setGeometry(QtCore.QRect(240, 180, 49, 21))
-        self.label_6.setObjectName("label_6")
-  
-        # Box optimize
-        self.optimize = QtWidgets.QGroupBox(parent=self.centralwidget)
-        self.optimize.setFlat(False)
-        self.optimize.setCheckable(False)
-        self.optimize.setObjectName("mesh")
-        self.left_layout.addWidget(self.optimize)
-        self.optimize.hide()
+        self.label_6.setGeometry(QtCore.QRect(230, 180, 50, 25))
+        self.label_6.setObjectName("(Pa)")
+
+        self.label_7 = QtWidgets.QLabel(parent=self.groupBox)
+        self.label_7.setGeometry(QtCore.QRect(20, 208, 200, 20))
+        self.label_7.setText("Turbulence Model")
+
+        self.sst = QtWidgets.QCheckBox("SST", parent=self.groupBox)
+        self.sst.setGeometry(QtCore.QRect(125, 203, 100, 30))
+        
+        self.sa = QtWidgets.QCheckBox("Spalart-Allmaras", parent=self.groupBox)
+        self.sa.setGeometry(QtCore.QRect(170, 203, 150, 30))
+
 
         # Nút RUN
         self.run = QtWidgets.QPushButton(parent=self.groupBox)
-        self.run.setGeometry(QtCore.QRect(20, 210, 271, 51))
+        self.run.setGeometry(QtCore.QRect(20, 230, 200, 50))
         self.run.setObjectName("run")
+        self.run.setStyleSheet("""
+            QPushButton {
+                background-color: white;
+                font-size: 16px;
+                color: black;
+            }
+        """)
+  
+        # Box optimize ======================================================================
+
+        # Thêm khối Optimization vào giao diện
+        self.optimize = QtWidgets.QGroupBox(parent=self.centralwidget)
+        self.optimize.setFlat(False)
+        self.optimize.setCheckable(False)
+        self.optimize.setObjectName("optimize")
+        self.left_layout.addWidget(self.optimize)
+        self.optimize.setStyleSheet("""
+                                    QGroupBox {
+                                    background-color: rgba(255, 255, 255, 100);  /* Nền trắng */
+                                    border: 1px solid gray;   /* Viền xung quanh */
+                                    border-radius: 10px;
+                                    }                                
+                                    QGroupBox::title {
+                                    subcontrol-origin: margin;
+                                    subcontrol-position: top left;
+                                    padding: 5px 10px;
+                                    background-color: rgba(255, 255, 255, 170);  /* Nền trắng cho tiêu đề */
+                                    color: black;  /* Màu chữ của tiêu đề */
+                                    font: bold 30px;  /* Kiểu chữ đậm, kích thước 16px */    
+                                    border-top-left-radius: 10px;                       
+                                    }
+                                    """)
+        self.optimize.hide()  # Ẩn đi khi tạo lưới
+        # Loại Design Variable (dvkind)
+        # Tên
+        self.label_dvkind = QtWidgets.QLabel(parent=self.optimize)
+        self.label_dvkind.setGeometry(QtCore.QRect(20, 30, 150, 20))
+        # Ô chọn
+        self.dvkind = QtWidgets.QComboBox(parent=self.optimize)
+        self.dvkind.setGeometry(QtCore.QRect(20, 50, 200, 31))
+        self.dvkind.setEditable(False)
+        self.dvkind.setObjectName("dvkind")
+        self.dvkind.addItem("")
+        self.dvkind.addItem("")
+        self.dvkind.setStyleSheet("""
+                                QComboBox{
+                                background-color: white;  /* Nền trắng */
+                                border: 1px solid gray;   /* Viền xung quanh */
+                                border-radius: 5px;
+                                padding: 5px;
+                                }
+                                """)
+        #
+        # Số lượng Design Variables (Tạm thời yêu cầu lấy số chẵn (Đều 2 mặt) - Lẻ mặt trên dưới để sau làm thêm)
+        # Tên
+        self.label_dvnumber = QtWidgets.QLabel(parent=self.optimize)
+        self.label_dvnumber.setGeometry(QtCore.QRect(20, 80, 150, 20))
+        # Ô điền
+        self.dvnumber = QtWidgets.QLineEdit(parent=self.optimize)
+        self.dvnumber.setGeometry(QtCore.QRect(20, 100, 200, 22))
+        self.dvnumber.setText("")
+        self.dvnumber.setObjectName("dvnumber")
+        self.dvnumber.setStyleSheet("""
+                                QLineEdit{
+                                background-color: white;  /* Nền trắng */
+                                border: 1px solid gray;   /* Viền xung quanh */
+                                border-radius: 5px;
+                                padding: 5px;
+                                }
+                                """)
+        #
+        # Thông số cần tối ưu (Optimization objective) (opt_object)
+        # Tên
+        self.label_opt_object = QtWidgets.QLabel(parent=self.optimize)
+        self.label_opt_object.setGeometry(QtCore.QRect(20, 120, 180, 20))
+        # Ô chọn
+        self.opt_object = QtWidgets.QComboBox(parent=self.optimize)
+        self.opt_object.setGeometry(QtCore.QRect(20, 140, 200, 31))
+        self.opt_object.setEditable(False)
+        self.opt_object.setObjectName("opt_object")
+        self.opt_object.addItem("")
+        self.opt_object.addItem("")
+        self.opt_object.setStyleSheet("""
+                                QComboBox{
+                                background-color: white;  /* Nền trắng */
+                                border: 1px solid gray;   /* Viền xung quanh */
+                                border-radius: 5px;
+                                padding: 5px;
+                                }
+                                """)
+        #
+        # Tham số cố định (Optimization constraint) (opt_const)
+        # Tên
+        self.label_opt_const_type = QtWidgets.QLabel(parent=self.optimize)
+        self.label_opt_const_type.setGeometry(QtCore.QRect(20, 170, 180, 20))
+        # Ô chọn
+        # Có chọn Optimization constraint hay không ?
+        self.opt_const_type = QtWidgets.QComboBox(parent=self.optimize)
+        self.opt_const_type.setGeometry(QtCore.QRect(20, 190, 200, 31))
+        self.opt_const_type.setObjectName("opt_const_type")
+        self.opt_const_type.setStyleSheet("""
+                                QComboBox{
+                                background-color: white;  /* Nền trắng */
+                                border: 1px solid gray;   /* Viền xung quanh */
+                                border-radius: 5px;
+                                padding: 5px;
+                                }
+                                """)
+        # Multi-select Optimization constraint
+        self.opt_const_list = QtWidgets.QListWidget(parent=self.optimize)
+        self.opt_const_list.setGeometry(QtCore.QRect(20, 225, 200, 80))
+        self.opt_const_list.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.MultiSelection)
+        self.opt_const_list.setStyleSheet("""
+                                          QListWidget {
+                                          background-color: rgba(255, 255, 255, 170);
+                                          border: 1px solid gray;
+                                          border-radius: 5px;
+                                          padding: 5px;
+                                          font-size: 13px;
+                                          }
+                                          QListWidget::item:selected {
+                                          background-color: #cce4ff;  /* Màu nền khi chọn */
+                                          color: black;
+                                          }
+                                          QListWidget::item:hover {
+                                          background-color: #e6f2ff;  /* Màu khi di chuột tới */
+                                          }
+                                          """)
+        self.opt_const_list.hide()  # Ẩn lúc chưa chọn opt_const_type là select value
+        self.opt_const_type.currentTextChanged.connect(self.toggle_constraint_list)  # Ẩn/Hiện box chọn tham số cố định
+        #
+        # Nút Run Optimize
+        self.optimize_button = QtWidgets.QPushButton(parent=self.optimize)
+        self.optimize_button.setGeometry(QtCore.QRect(20, 230, 200, 50))
+        self.optimize_button.setObjectName("optimize_button")
+
+        # Box optimize (end) ==================================================================
+        # Ẩn/Hiện box chọn tham số cố định
 
         # Các trường quan sát trong tab 2
         self.field = QtWidgets.QComboBox(parent=self.tab2)
+        self.field.setGeometry(QtCore.QRect(10, 10, 100, 30))
         self.field.setEditable(False)
         self.field.setCurrentText("Pressure")
         self.field.setDuplicatesEnabled(False)
         self.field.setObjectName("field")
-        self.field.addItems(["Pressure", "Temperature", "Velocity"])
+        self.field.addItems(["Pressure", "Temperature", "Velocity", "Streamlines"])
+        self.field.setStyleSheet("""
+                                 QComboBox { 
+                                 background-color: white;
+                                 border: 1px solid gray;
+                                 border-radius: 10px;
+                                 font-size: 12px;
+                                 }
+                                 QComboBox:hover {
+                                 border: 1px solid #5c9eff;
+                                 }
+                                 QComboBox::drop-down {
+                                 color: black;
+                                 background-color: white;
+                                 subcontrol-origin: padding;
+                                 subcontrol-position: top right;
+                                 width: 20px;
+                                 border-left: 1px solid gray; /* Thêm viền cho drop-down */
+                                 border-bottom-left-radius: 10px; /* Bo góc cho drop-down */
+                                 border-bottom-right-radius: 10px; /* Bo góc cho drop-down */
+                                 }
+                                 QComboBox QAbstractItemView {
+                                 background-color: white;
+                                 selection-background-color: #cce4ff;
+                                 selection-color: black;
+                                 border: 1px solid #aaa;
+                                 font-size: 15px;
+                                 }
+                                 """)
+
 
         self.res=MatplotlibWidget()
 
@@ -208,15 +595,35 @@ class Ui_group(object):
 
         # Kết nối các nút với chức năng
         self.generate.clicked.connect(lambda: self.groupBox.show())
+        self.generate.clicked.connect(lambda: self.left_layout.setStretch(0, 1))  # self.mesh
+        self.generate.clicked.connect(lambda: self.left_layout.setStretch(1, 1))  # self.boundary_box
         self.generate.clicked.connect(self.progress_bar)
         self.generate.clicked.connect(self.airfoil)
         self.report.clicked.connect(self.export_report)
         self.run.clicked.connect(self.sim)
         self.run.clicked.connect(self.progress_bar)
         self.run.clicked.connect(lambda: self.report.show())
+        self.run.clicked.connect(lambda: self.optimize.show())
+        self.run.clicked.connect(lambda: self.left_layout.setStretch(2, 1))
         self.field.activated.connect(self.show)
+        #self.cal.clicked.connect(self.compute())
 
-    
+    def toggle_constraint_list(self, text):
+        if text == "Select value":
+            self.opt_const_list.show()
+        else:
+            self.opt_const_list.hide()
+
+    def compute(self):
+        self.vel=(self.mach1)
+
+
+    def updateTabVisibility(self):
+        if self.radio_inviscid.isChecked():
+            self.mesh_tabs.setTabVisible(1,False)
+        elif self.radio_turbulent.isChecked():
+            self.mesh_tabs.setTabVisible(1,True)
+
     def export_report(self): # Xuất báo cáo 
         code=MeshGenerator.naca_code(group=self.type_of_naca.currentText(),type=self.type.currentText())
         self.export = export(mach=self.mach.text(), 
@@ -243,7 +650,6 @@ class Ui_group(object):
         _translate = QtCore.QCoreApplication.translate
         group.setWindowTitle(_translate("group", "Airfoil CFD Simulation"))
 
-        self.mesh.setTitle(_translate("group", "Mesh"))
         self.generate.setText(_translate("group", "GENERATE"))
         self.report.setText(_translate("group", "REPORT"))
         self.type_of_naca.setItemText(0, _translate("group", "NACA 4 digit"))
@@ -254,6 +660,7 @@ class Ui_group(object):
 
         self.optimize.setTitle(_translate("group", "Optimization"))
 
+        self.mesh.setTitle(_translate("group", "Mesh"))
         self.groupBox.setTitle(_translate("group", "Initial Conditions"))
         self.mach.setPlaceholderText(_translate("group", "Mach number"))
         self.aoa.setPlaceholderText(_translate("group", "AOA"))
@@ -273,6 +680,40 @@ class Ui_group(object):
         self.label_6.setText(_translate("group", "(Pa)"))
         self.run.setText(_translate("group", "RUN"))
 
+        # Box optimize ===========================================================
+
+        # Tên box Optimization
+        self.optimize.setTitle(_translate("group", "Optimization"))
+        #
+        # Item của Optimize
+        # Item trong box Design Variable kind
+        self.label_dvkind.setText("Design Variable kind:")  # Tên box
+        self.dvkind.setItemText(0, _translate("group", "HICKS_HENNE"))
+        self.dvkind.setItemText(1, _translate("group", "FFD_SETTING"))
+        #
+        # Số lượng Design Variable
+        self.label_dvnumber.setText("DV Number (even number):")  # Tên box
+        #
+        # Item trong box Optimization objective
+        self.label_opt_object.setText("Optimization objective:")  # Tên box
+        self.opt_object.setItemText(0, _translate("group", "LIFT"))
+        self.opt_object.setItemText(1, _translate("group", "DRAG"))
+        #
+        # Item trong box Optimization constraint
+        self.label_opt_const_type.setText(
+            "Optimization constraint:")  # Tên box
+        # Có chọn Optimization constraint hay không ?
+        self.opt_const_type.addItems(["NONE", "Select value"])
+        # Multi-select Optimization constraint
+        self.opt_const_list.addItems(
+            ["LIFT", "DRAG", "MOMENT_Z", "AIRFOIL_THICKNESS"])
+        #
+        # Nút Run Optimize
+        self.optimize_button.setText("OPTIMIZE")
+
+        # Box optimize (end) =====================================================
+
+
         # Danh sách các airfoil có sẵn
         airfoils = ["NACA 0012", "NACA 2412", "NACA 63206", "NACA 63209"]
 
@@ -291,10 +732,12 @@ class Ui_group(object):
         if group == "NACA 4 digit":
             self.type.show()
             self.type.clear()
+            self.type_line.hide()
             self.type.addItems(["NACA 0012", "NACA 2412"])
         elif group == "NACA 5 digit":
             self.type.show()
             self.type.clear()
+            self.type_line.hide()
             self.type.addItems(["NACA 63206", "NACA 63209"])
         elif group == "Others":
             self.type.hide()
@@ -328,10 +771,18 @@ class Ui_group(object):
         self.run.finished.connect(self.show)
     def show(self):
         code=MeshGenerator.naca_code(group=self.type_of_naca.currentText(),type=self.type.currentText())
-        self.tab2.show(data=os.path.join(f'NACA_{code}', 'flow.vtu'), field=self.field.currentText(), code=''.join(re.findall(r'\d+', self.type.currentText())))
+        self.tab2.show(data=os.path.join(f'NACA_{code}', 'flow.vtu'), field=self.field.currentText(), dim=self.dimension(), code=''.join(re.findall(r'\d+', self.type.currentText())))
         self.residuals()
+    def dimension(self):
+        if self.field.currentText() == "Pressure":
+            self.dim = "Pa"
+        elif self.field.currentText() == "Temperature":
+            self.dim = "K"
+        elif self.field.currentText() == "Velocity":
+            self.dim = "m/s"
+        return self.dim
 
-    def residuals(self):#Plot đồ thị thể hiện tiến trình hội tụ 
+    def residuals(self): #Plot đồ thị thể hiện tiến trình hội tụ 
         self.tab3.path(history_file_path=os.path.join(f'NACA_{''.join(re.findall(r'\d+', self.type.currentText()))}', 'history.csv'))      
         self.tab3.update_plot()                      
  
