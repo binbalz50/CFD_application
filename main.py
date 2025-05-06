@@ -9,10 +9,20 @@
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtGui import QPalette, QBrush, QPixmap
 from PyQt6.QtCore import Qt
+# Tab Optimize
+from functools import partial
+from PyQt6.QtWidgets import QScrollArea, QLineEdit, QToolButton, QMenu, QWidgetAction, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QFrame, QGridLayout, QSizePolicy
+# Tab Optimize (end)
 from mesh import MeshGenerator
 from visual import *
 from init_conditions import Init
 from realTimeAeroCoeffsUpdate import MatplotlibWidget
+# Tab Optimize
+from real_time_opt_update import RealTimeOptUpdate
+import opt_tab_support
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from PyQt6.QtCore import QFileSystemWatcher
+# Tab Optimize (end)
 import os
 from report import *
 import re
@@ -535,8 +545,9 @@ class Ui_group(object):
         #
         # Nút Run Optimize
         self.optimize_button = QtWidgets.QPushButton(parent=self.optimize)
-        self.optimize_button.setGeometry(QtCore.QRect(20, 230, 200, 50))
+        self.optimize_button.setGeometry(QtCore.QRect(20, 360, 211, 40))
         self.optimize_button.setObjectName("optimize_button")
+        self.optimize_button.clicked.connect(self.run_optimization) # Kết nối nút với chức năng
 
         # Box optimize (end) ==================================================================
         # Ẩn/Hiện box chọn tham số cố định
@@ -607,6 +618,334 @@ class Ui_group(object):
         self.run.clicked.connect(lambda: self.left_layout.setStretch(2, 1))
         self.field.activated.connect(self.show)
         #self.cal.clicked.connect(self.compute())
+
+# Tab Optimize ===================================================================
+    # Tạo tab mới cho Optimize
+        self.tab5 = QtWidgets.QWidget(self.centralwidget)
+        self.tab5.setObjectName("Optimize")
+        self.tabs.addTab(self.tab5, "Optimize")
+        # Thêm vào đây:
+        # 1) Dùng QVBoxLayout làm layout chính cho tab5
+        self.tab5_layout = QVBoxLayout(self.tab5)
+        self.tab5_layout.setContentsMargins(5,5,5,5)    # Khoảng cách biên
+
+    # Tạo menu bar
+        # 2) Tạo “menu bar” trên cùng
+        self.menu_bar = QFrame(self.tab5)
+        self.menu_bar.setObjectName("menu_bar")
+        self.menu_bar.setFrameShape(QFrame.Shape.StyledPanel)
+        # Chiều cao cố định (ví dụ 40px) đủ cho 1 dòng text / nút
+        self.menu_bar.setFixedHeight(40)
+
+        # Bên trong menu_bar, dùng layout ngang để dễ thêm nút sau này
+        self.menu_bar_layout = QHBoxLayout(self.menu_bar)
+        self.menu_bar_layout.setContentsMargins(5,0,5,0)
+        self.menu_bar_layout.setSpacing(10)
+        self.menu_bar_layout.setAlignment(Qt.AlignmentFlag.AlignLeft) # Chỉnh layout nút căn lề trái
+
+        # 3) Thêm menu_bar vào layout chính, stretch 0 (không giãn)
+        self.tab5_layout.addWidget(self.menu_bar, stretch=0)
+
+    # Tạo vùng hiển thị results
+        # 4) Tạo vùng hiển thị bên dưới
+        self.display_area = QFrame(self.tab5)
+        self.display_area.setLayout(QVBoxLayout()) # Tự động chia ô khi chọn phần hiển thị trong Display Result Setting
+        self.display_area.setObjectName("display_area")
+        self.display_area.setFrameShape(QFrame.Shape.StyledPanel)
+        # Vùng này sẽ giãn chiếm hết không gian còn lại
+        self.tab5_layout.addWidget(self.display_area, stretch=1)
+
+        # Giờ self.tab5 đã có hai khu: 
+        #  - self.menu_bar ở trên (cố định cao 40px)
+        #  - self.display_area bên dưới (mở rộng cho nội dung)
+        # Khi cần thêm nút hay widget lên thanh, chỉ việc:
+        #   self.menu_bar_layout.addWidget(my_button)
+
+    # Nút Display Result
+        # Tạo nút sổ Setting Display Result
+        self.display_btn = QToolButton(self.menu_bar)
+        self.display_btn.setText("Display Result")
+        self.display_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)     # Popup Setting ra
+        self.display_btn.setFixedWidth(100)             # Giới hạn độ rộng
+        self.menu_bar_layout.addWidget(self.display_btn)
+
+        # Tạo Menu Display Result “thả xuống”
+        menu_display = QMenu(self.display_btn)
+
+        # Tạo một QWidget làm khung settings
+        sett_display_widget = QWidget()
+        sett_display_layout = QVBoxLayout(sett_display_widget)
+        sett_display_layout.setContentsMargins(8, 8, 8, 8)
+        sett_display_layout.setSpacing(6)
+
+        # Thêm 3 tùy chọn hiển thị cho Display Result Setting
+        sett_display_layout.addWidget(QLabel("<b>Display Settings</b>"))
+        self.cb_airfoil_compar = QCheckBox("Show Airfoil Comparison")
+        sett_display_layout.addWidget(self.cb_airfoil_compar)
+        self.cb_flow    = QCheckBox("Show Flow fields")
+        sett_display_layout.addWidget(self.cb_flow)
+        self.cb_res     = QCheckBox("Show Residuals")
+        sett_display_layout.addWidget(self.cb_res)
+
+        # Lưu các check box vào biến display_checks
+        self.display_checks = {
+            "Airfoil Comparison": self.cb_airfoil_compar,
+            "Flow fields"       : self.cb_flow,
+            "Residuals"         : self.cb_res,
+        }
+        # Khởi tạo list lưu trạng thái hiện tại
+        self.current_display_sett = []
+
+        # Kết nối mỗi khi người dùng tick/un-tick
+        for cb_display in self.display_checks.values():
+            cb_display.stateChanged.connect(self.update_display_list)
+            self.update_display_area()      # Vẽ placeholder ban đầu (Thêm Please select options in Display Result above ngay khi mới mở)
+
+        # Đóng gói widget này thành QAction để chèn vào menu_display
+        display_widget_action = QWidgetAction(self.display_btn)
+        display_widget_action.setDefaultWidget(sett_display_widget)
+        menu_display.addAction(display_widget_action)
+
+        # Gán menu_display cho nút
+        self.display_btn.setMenu(menu_display)
+
+    
+    # Thêm kẻ dọc chia đôi Display Result với Result Settings:
+        self.separator = QFrame(self.menu_bar)
+        self.separator.setFrameShape(QFrame.Shape.VLine)
+        self.separator.setFrameShadow(QFrame.Shadow.Sunken)
+        self.separator.setLineWidth(1)
+    # có thể thêm margin nếu cần:
+        self.separator.setContentsMargins(5, 0, 5, 0)
+        self.menu_bar_layout.addWidget(self.separator)
+
+    # Hiện Label “Result Settings:” sau Display Result
+        self.result_label = QLabel("Result Settings:", self.menu_bar)
+        self.menu_bar_layout.addWidget(self.result_label)
+
+    # Nút Comparison
+        self.comp_settings_btn = QToolButton(self.menu_bar)
+        self.comp_settings_btn.setText("Comparison Settings")
+        self.comp_settings_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.comp_settings_btn.setFixedWidth(150)
+        self.menu_bar_layout.addWidget(self.comp_settings_btn)
+        self.comp_settings_btn.hide()
+
+        # Dropdown menu
+        menu_comp = QMenu(self.comp_settings_btn)
+        comp_widget = QWidget()
+        comp_layout = QVBoxLayout(comp_widget)
+        comp_layout.setContentsMargins(8,8,8,8)
+        comp_layout.setSpacing(6)
+
+        # Header
+        hdr = QLabel("Multiple choices (Max 5)")
+        f = hdr.font(); f.setItalic(True); hdr.setFont(f)
+        comp_layout.addWidget(hdr)
+
+        # Search box
+        self.comp_search = QLineEdit()
+        self.comp_search.setPlaceholderText("Find…")
+        self.comp_search.textChanged.connect(self.filter_comp_checks)
+        comp_layout.addWidget(self.comp_search)
+
+        # Scroll area cho checkbox
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll_content = QWidget()
+        scroll_layout = QVBoxLayout(scroll_content)
+        scroll_layout.setContentsMargins(0,0,0,0)
+        scroll_layout.setSpacing(4)
+
+        # 1) Checkbox “Latest Design”
+        self.cb_latest_design = QCheckBox("Latest Design")
+        scroll_layout.addWidget(self.cb_latest_design)
+        # 2) Checkbox baseline – NACA_{code}
+        code = ''.join(filter(str.isdigit, self.type.currentText()))
+        self.baseline_label = f"NACA_{code}"
+        self.cb_root_code = QCheckBox(self.baseline_label)
+        scroll_layout.addWidget(self.cb_root_code)
+
+        # Khởi tạo dict và kết nối chung
+        self.comp_checks = {
+            "Latest Design": self.cb_latest_design,
+            self.baseline_label: self.cb_root_code,
+        }
+        # Khởi tạo list lưu lựa chọn comparison (tránh AttributeError)
+        self.current_comp_sett = []
+        for name, cb in self.comp_checks.items():
+            cb.stateChanged.connect(self.update_comp_list)
+
+        # Lưu scroll_layout để sau này cập nhật DSN_xxx
+        self.comp_scroll_layout = scroll_layout
+
+        scroll.setWidget(scroll_content)
+        # Cho hiển thị 6 dòng checkbox trước
+        scroll.setFixedHeight(hdr.fontMetrics().height()*6 + 12)
+        comp_layout.addWidget(scroll)
+
+        # Đóng gói vào menu
+        comp_action = QWidgetAction(self.comp_settings_btn)
+        comp_action.setDefaultWidget(comp_widget)
+        menu_comp.addAction(comp_action)
+        self.comp_settings_btn.setMenu(menu_comp)
+
+    # Nút Flow fields
+        self.flow_settings_btn = QToolButton(self.menu_bar)
+        self.flow_settings_btn.setText("Flow fields Settings")
+        self.flow_settings_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.flow_settings_btn.setFixedWidth(140)
+        self.menu_bar_layout.addWidget(self.flow_settings_btn)
+        self.flow_settings_btn.hide() # Ẩn khi không tích chọn
+
+        # Tạo menu dropdown
+        menu_flow = QMenu(self.flow_settings_btn)
+
+        # Widget chứa layout 2 cột
+        flow_widget = QWidget()
+        flow_layout = QHBoxLayout(flow_widget)
+        flow_layout.setContentsMargins(8,8,8,8)
+        flow_layout.setSpacing(10)
+
+        # --- Cột 1: Airfoil ---
+        col1 = QWidget()
+        col1_layout = QVBoxLayout(col1)
+        # Tiêu đề
+        lbl1 = QLabel("Airfoil")
+        col1_layout.addWidget(lbl1)
+        # Chú thích
+        note1 = QLabel("Select one")
+        f1 = note1.font(); f1.setItalic(True); note1.setFont(f1)
+        col1_layout.addWidget(note1)
+        # Scroll area
+        sa1 = QScrollArea()
+        sa1.setWidgetResizable(True)
+        cont1 = QWidget()
+        lay1 = QVBoxLayout(cont1)
+        lay1.setContentsMargins(0,0,0,0); lay1.setSpacing(4)
+        # Checkbox nhóm Airfoil
+        self.cb_ff_latest = QCheckBox("Latest Design")
+        self.cb_ff_root   = QCheckBox("NACA_{code}")
+        self.cb_ff_update = QCheckBox("Design Update")
+        for cb in (self.cb_ff_latest, self.cb_ff_root, self.cb_ff_update):
+            lay1.addWidget(cb)
+        sa1.setWidget(cont1)
+        sa1.setFixedHeight(lbl1.fontMetrics().height()*6 + 12)
+        col1_layout.addWidget(sa1)
+
+        # Giữ dict + list cho Airfoil
+        self.flow_airfoil_checks = {
+            "Latest Design": self.cb_ff_latest,
+            "NACA_{code}"  : self.cb_ff_root,
+            "Design Update": self.cb_ff_update,
+        }
+        self.current_flow_airfoil = []
+        # Kết nối ràng buộc chọn 1
+        for name, cb in self.flow_airfoil_checks.items():
+            # truyền name vào slot, slot nhận (name, state)
+            cb.stateChanged.connect(partial(self._on_flow_airfoil_changed, name))
+
+        # --- Separator giữa 2 cột ---
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.VLine)
+        sep.setFrameShadow(QFrame.Shadow.Sunken)
+        flow_layout.addWidget(col1)
+        flow_layout.addWidget(sep)
+
+        # --- Cột 2: Flow fields ---
+        col2 = QWidget()
+        col2_layout = QVBoxLayout(col2)
+        lbl2 = QLabel("Flow fields")
+        col2_layout.addWidget(lbl2)
+        note2 = QLabel("Select one")
+        f2 = note2.font(); f2.setItalic(True); note2.setFont(f2)
+        col2_layout.addWidget(note2)
+        sa2 = QScrollArea()
+        sa2.setWidgetResizable(True)
+        cont2 = QWidget()
+        lay2 = QVBoxLayout(cont2)
+        lay2.setContentsMargins(0,0,0,0); lay2.setSpacing(4)
+        self.cb_ff_press = QCheckBox("Pressure")
+        self.cb_ff_temp  = QCheckBox("Temperature")
+        self.cb_ff_vel   = QCheckBox("Velocity")
+        for cb in (self.cb_ff_press, self.cb_ff_temp, self.cb_ff_vel):
+            lay2.addWidget(cb)
+        sa2.setWidget(cont2)
+        sa2.setFixedHeight(lbl2.fontMetrics().height()*6 + 12)
+        col2_layout.addWidget(sa2)
+
+        self.flow_field_checks = {
+            "Pressure"   : self.cb_ff_press,
+            "Temperature": self.cb_ff_temp,
+            "Velocity"   : self.cb_ff_vel,
+        }
+        self.current_flow_fields = []
+        for name, cb in self.flow_field_checks.items():
+            cb.stateChanged.connect(partial(self._on_flow_field_changed, name))
+
+        flow_layout.addWidget(col2)
+
+        # Đóng gói widget vào menu và gán cho nút
+        action_flow = QWidgetAction(self.flow_settings_btn)
+        action_flow.setDefaultWidget(flow_widget)
+        menu_flow.addAction(action_flow)
+        self.flow_settings_btn.setMenu(menu_flow)
+
+    # Nút Residuals
+        self.resid_settings_btn = QToolButton(self.menu_bar)
+        self.resid_settings_btn.setText("Residual Settings")
+        self.resid_settings_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.resid_settings_btn.setFixedWidth(150)
+        self.menu_bar_layout.addWidget(self.resid_settings_btn)
+        self.resid_settings_btn.hide() # Ẩn khi không tick chọn
+
+        # Tạo menu thả xuống cho Residual Settings
+        menu_resid = QMenu(self.resid_settings_btn)
+
+        # Widget chứa nội dung setting
+        resid_widget = QWidget()
+        resid_layout = QVBoxLayout(resid_widget)
+        resid_layout.setContentsMargins(8, 8, 8, 8)
+        resid_layout.setSpacing(6)
+
+        # Dòng ghi chú in nghiêng
+        header = QLabel("Multiple choices")
+        font = header.font()
+        font.setItalic(True)
+        header.setFont(font)
+        resid_layout.addWidget(header)
+
+        # 4 checkbox cho residual settings
+        self.cb_CL     = QCheckBox("CL")
+        self.cb_CD     = QCheckBox("CD")
+        self.cb_MZ     = QCheckBox("MOMENT_Z")
+        self.cb_T      = QCheckBox("AIRFOIL_THICKNESS")
+        for cb_resid in (self.cb_CL, self.cb_CD, self.cb_MZ, self.cb_T):
+            resid_layout.addWidget(cb_resid)
+
+        # Lưu các checkbox vào dict để quản lý
+        self.resid_checks = {
+            "CL"                : self.cb_CL,
+            "CD"                : self.cb_CD,
+            "MOMENT_Z"          : self.cb_MZ,
+            "AIRFOIL_THICKNESS" : self.cb_T,
+        }
+        # Khởi tạo list lưu trạng thái
+        self.current_resid_sett = []
+
+        # Kết nối mỗi khi tick/un-tick
+        for cb_resid in self.resid_checks.values():
+            cb_resid.stateChanged.connect(self.update_resid_list)
+
+        # Đóng gói widget thành QAction rồi thêm vào menu
+        resid_action = QWidgetAction(self.resid_settings_btn)
+        resid_action.setDefaultWidget(resid_widget)
+        menu_resid.addAction(resid_action)
+
+        # Gán menu cho nút
+        self.resid_settings_btn.setMenu(menu_resid)
+
+# Tab Optimize (end) =============================================================
 
     def toggle_constraint_list(self, text):
         if text == "Select value":
@@ -786,10 +1125,135 @@ class Ui_group(object):
         self.tab3.path(history_file_path=os.path.join(f'NACA_{''.join(re.findall(r'\d+', self.type.currentText()))}', 'history.csv'))      
         self.tab3.update_plot()                      
  
+    # Box optimize ===========================================================
+
+    # Ẩn/Hiện box chọn tham số cố định
+    def toggle_constraint_list(self, text):
+        if text == "Select value":
+            self.opt_const_list.show()
+        else:
+            self.opt_const_list.hide()
+    #
+    # Thực thi tiến trình tối ưu sau khi nhấn nút "OPTIMIZE"
+    def run_optimization(self):
+        #Khởi động quá trình tối ưu hóa:
+        #0) Kiểm tra dv_number trước khi bắt đầu
+        #1) Thiết lập đường dẫn
+        #2) Thu thập input từ GUI
+        #3) Khởi tạo và cấu hình luồng OptInit
+        #4) Kết nối signal và bắt đầu thread
+        #
+        #0) Kiểm tra dv_number trước khi bắt đầu
+        dv_number_str = self.dvnumber.text().strip()
+        try:
+            dv_number = int(dv_number_str)
+        except ValueError:
+            QtWidgets.QMessageBox.warning(
+                self.optimize,                      # parent widget
+                "Invalid DV Number",                # title
+                "Please enter a valid integer for DV Number.\n"
+                "E.g., 4, 6, 8, 10, …"              # ví dụ
+            )
+            return
+
+        if dv_number < 2 or dv_number % 2 != 0:
+            QtWidgets.QMessageBox.warning(
+                self.optimize,
+                "Invalid DV Number",
+                "Please choose an even number (>= 2) for DV Number.\n"
+                "E.g., 4, 6, 8, 10, …"
+            )
+            return
+        # 1) Xác định paths dựa trên NACA <code> và file mesh đã sinh
+        code = MeshGenerator.naca_code(
+                         group=self.type_of_naca.currentText(),
+                         type=self.type.currentText()
+                     )
+        mesh_path   = os.path.join(f'NACA_{code}', f"mesh_airfoil_{code}.su2")
+        folder_name = f'NACA_{code}'
+
+        # Tab optimize =====================================================
+        # Gán thuộc tính để dùng chung
+        self.folder_name = folder_name
+
+        # Khởi watcher để giám sát thư mục DESIGNS và folder_name
+        designs_path = os.path.join(self.folder_name, 'DESIGNS')
+        self.dsn_watcher = QFileSystemWatcher(self.centralwidget)
+        # Luôn watch folder_name để phát hiện khi DESIGNS mới sinh
+        self.dsn_watcher.addPath(self.folder_name)
+        # Nếu DESIGNS đã tồn tại (ví dụ optimize chạy lần thứ hai), watch thêm
+        if os.path.isdir(designs_path):
+            self.dsn_watcher.addPath(designs_path)
+        # Kết nối sự kiện cho cả hai path
+        self.dsn_watcher.directoryChanged.connect(self.on_designs_dir_changed)
+        # Tab optimize (end) ================================================
+
+        # 2) Thu thập tham số tối ưu từ GUI
+        dv_kind    = self.dvkind.currentText()                  # HICKS_HENNE / FFD_SETTING
+        dv_number  = int(self.dvnumber.text() or "0")           # Số lượng DV (even)
+        opt_object  = self.opt_object.currentText()              # LIFT / DRAG
+        opt_const_type = self.opt_const_type.currentText()          # NONE / Select value
+        if opt_const_type == "Select value":
+            opt_const_list  = [item.text() for item in self.opt_const_list.selectedItems()] # Đổi qua biến opt_const_list để đổi kiểu dữ liệu list
+        else:
+            opt_const_list  = []                                    # không ràng buộc
+
+        # 3) Khởi tạo luồng tối ưu (OptInit trong init_opt_conditions.py)
+        from init_opt_conditions import OptInit
+        self.opt_thread = OptInit(
+            mesh_path       = mesh_path,
+            folder_name     = folder_name,
+            mach            = self.mach.text(),
+            aoa             = self.aoa.text(),
+            temperature     = self.temp.text(),
+            pressure        = self.pressure.text(),
+            dv_kind         = dv_kind,
+            dv_number       = dv_number,
+            opt_object      = opt_object,
+            opt_const_type  = opt_const_type,
+            opt_const_list  = opt_const_list,
+            # Để ở đây để khi nào cần thêm vào GUI cho chỉnh sửa / thiết đặt thì sài
+            solver          = "EULER",
+            opt_iterations  = 100,
+            opt_accuracy    = 1e-10,
+            opt_bound_upper = 0.1,
+            opt_bound_lower = -0.1
+        )
+
+        # 4) Kết nối các signal để UI phản hồi
+        self.opt_thread.inform.connect(self.inform)  # hiện popup Success!
+        self.opt_thread.finished.connect(lambda:
+            self.statusbar.showMessage("Optimization complete"))
+        # Hiển thị progress bar nếu muốn
+        self.progress_bar()
+
+        # 5) Bắt đầu thread
+        self.opt_thread.start()
+        #cfg_path = self.opt_thread.initial_conditions()
+        #QtWidgets.QMessageBox.information(
+        #    self.optimize,
+        #    "Config Generated",
+        #    f"Config file has been created at:\n{cfg_path}"
+        #)
+        #return
+
+    # Box optimize (end) ========================================================    
+
 if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)
     group = QtWidgets.QMainWindow()
+    # Tab Optimize ===============================================================
+    for name in [
+        'update_display_list', 'update_display_area', 'update_setting_buttons_visibility',
+        'on_designs_dir_changed', 'update_comp_dsn_checkboxes', 'update_resid_list',
+        'update_comp_list', 'filter_comp_checks',
+        '_on_flow_airfoil_changed', '_on_flow_field_changed',
+        'create_airfoil_comparison_panel', 'create_residual_panel',
+        '_on_residuals_dir_changed' 
+    ]:
+        setattr(Ui_group, name, getattr(opt_tab_support, name))
+    # Tab Optimize (end) =========================================================
     ui = Ui_group()
     ui.setupUi(group)
     group.show()
