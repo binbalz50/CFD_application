@@ -65,7 +65,7 @@ class VisualizerWidget(QtWidgets.QWidget):
 
         else:
             self.plot.clear()
-            self.plot.add_mesh(result, scalars=result[field], scalar_bar_args={'title': f"{field} ({dim})" , 'vertical': False}, cmap='jet', show_scalar_bar=True)
+            self.plot.add_mesh(result, scalars=result[field], scalar_bar_args={'title': f"{field} ({dim})" , 'vertical': False, 'position_x': 0.25, 'position_y': 0.02}, cmap='jet', show_scalar_bar=True)
             self.plot.view_xy()
             self.plot.camera.zoom(1.3)
             self.plot.screenshot(rf"NACA_{code}\NACA_{code}_{field}.png",window_size=[1080, 1080])
