@@ -1,20 +1,15 @@
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtGui import QPalette, QBrush, QPixmap
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QFileSystemWatcher
 # Tab Optimize
 from functools import partial
-from PyQt6.QtWidgets import QScrollArea, QLineEdit, QToolButton, QMenu, QWidgetAction, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QFrame, QGridLayout, QSizePolicy
+from PyQt6.QtWidgets import QScrollArea, QLineEdit, QToolButton, QMenu, QWidgetAction, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QFrame
+import opt_tab 
 # Tab Optimize (end)
 from mesh import MeshGenerator
 from visual import *
 from init_conditions import Init
 from realTimeAeroCoeffsUpdate import MatplotlibWidget
-# Tab Optimize
-from real_time_opt_update import RealTimeOptUpdate
-import opt_tab_support
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from PyQt6.QtCore import QFileSystemWatcher
-# Tab Optimize (end)
 import run_optimize  # Optimize khởi chạy
 import os
 from report import *
@@ -197,6 +192,20 @@ class Ui_group(object):
                 font-size: 16px;
                 color: black;
             }
+                                    QPushButton:pressed {
+        background-color: #2980b9;
+        padding-top: 10px;
+        padding-bottom: 6px;
+    }
+
+    QPushButton:disabled {
+        background-color: #95a5a6;
+        color: #ecf0f1;
+    }
+                                    QPushButton:hover {
+                border: 2px solid #0078d7; /* Màu xanh Windows */
+                background-color: #e6f2fb;  /* Nền sáng nhẹ khi hover */
+            }
         """)
         
         # Nút REPORT
@@ -249,7 +258,14 @@ class Ui_group(object):
         self.type_line = QtWidgets.QLineEdit(parent=self.mesh_tab)
         self.type_line.setGeometry(self.type.geometry())
         self.type_line.setObjectName("type_line")
-        self.type_line.setStyleSheet("")
+        self.type_line.setStyleSheet("""
+                                QLineEdit{
+                                background-color: white;  /* Nền trắng */
+                                border: 1px solid gray;   /* Viền xung quanh */
+                                border-radius: 5px;
+                                padding: 5px;
+                                }
+                                """)
         self.type_line.hide()
 
         self.type_of_naca.currentTextChanged.connect(self.airfoil_type)
@@ -436,7 +452,8 @@ class Ui_group(object):
                                 }
                                 """)
         self.mach.setObjectName("mach")
-
+        self.mach.textChanged.connect(self.show_tooltip_if_comma)
+    
         self.aoa = QtWidgets.QLineEdit(parent=self.groupBox)
         self.aoa.setGeometry(QtCore.QRect(20, 120, 200, 25))
         self.aoa.setText("")
@@ -449,6 +466,7 @@ class Ui_group(object):
                                 }
                                 """)
         self.aoa.setObjectName("aoa")
+        self.aoa.textChanged.connect(self.show_tooltip_if_comma)
 
         self.temp = QtWidgets.QLineEdit(parent=self.groupBox)
         self.temp.setGeometry(QtCore.QRect(20, 150, 200, 25))
@@ -462,6 +480,7 @@ class Ui_group(object):
                                 }
                                 """)
         self.temp.setObjectName("temp")
+        self.temp.textChanged.connect(self.show_tooltip_if_comma)
 
         self.pressure = QtWidgets.QLineEdit(parent=self.groupBox)
         self.pressure.setGeometry(QtCore.QRect(20, 180, 200, 25))
@@ -475,15 +494,12 @@ class Ui_group(object):
                                 }
                                 """)
         self.pressure.setObjectName("pressure")
+        self.pressure.textChanged.connect(self.show_tooltip_if_comma)
 
         self.solver = QtWidgets.QComboBox(parent=self.groupBox)
         self.solver.setGeometry(QtCore.QRect(20, 55, 200, 30))
         self.solver.setEditable(False)
         self.solver.setObjectName("solver")
-        self.solver.addItem("")
-        self.solver.addItem("")
-        self.solver.addItem("")
-        self.solver.addItem("")
         self.solver.addItem("")
         self.solver.addItem("")
         self.solver.setStyleSheet("""
@@ -523,10 +539,10 @@ class Ui_group(object):
 
 
         # Nút RUN
-        self.run = QtWidgets.QPushButton(parent=self.groupBox)
-        self.run.setGeometry(QtCore.QRect(20, 230, 200, 50))
-        self.run.setObjectName("run")
-        self.run.setStyleSheet("""
+        self.run_button = QtWidgets.QPushButton(parent=self.groupBox)
+        self.run_button.setGeometry(QtCore.QRect(20, 230, 200, 50))
+        self.run_button.setObjectName("run")
+        self.run_button.setStyleSheet("""
             QPushButton {
                 background-color: white;
                 font-size: 16px;
@@ -540,11 +556,6 @@ class Ui_group(object):
         self.tabs.addTab(self.tab4, "Optimize")
         self.tab4_layout = QVBoxLayout(self.tab4)
         self.tab4_layout.setContentsMargins(5,5,5,5)
-        self.tab4.setStyleSheet("""
-                                    QWidget {
-                                    background-color: white;
-                                    } 
-                                    """)
 
     # Tạo menu bar
         self.menu_bar = QFrame(self.tab4)
@@ -626,7 +637,7 @@ class Ui_group(object):
         self.result_label = QLabel("Result Settings:", self.menu_bar)
         self.menu_bar_layout.addWidget(self.result_label)
 
-        # Nút Comparison
+    # Nút Comparison
         self.comp_settings_btn = QToolButton(self.menu_bar)
         self.comp_settings_btn.setText("Comparison Settings")
         self.comp_settings_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
@@ -717,6 +728,13 @@ class Ui_group(object):
         f1 = note1.font(); f1.setItalic(True); note1.setFont(f1)
         col1_layout.addWidget(note1)
 
+        # Search box cho Airfoil
+        self.flow_search = QLineEdit()
+        self.flow_search.setPlaceholderText("Find…")
+        # Kết nối tới hàm lọc filter_flow_airfoil_checks ở opt_tab.py
+        self.flow_search.textChanged.connect(self.filter_flow_airfoil_checks)
+        col1_layout.addWidget(self.flow_search)
+
         # Scroll area
         sa1 = QScrollArea()
         sa1.setWidgetResizable(True)
@@ -725,9 +743,12 @@ class Ui_group(object):
         lay1.setContentsMargins(0,0,0,0); lay1.setSpacing(4)
         # Checkbox nhóm Airfoil
         self.cb_ff_latest = QCheckBox("Latest Design")
-        self.cb_ff_naca_code   = QCheckBox("NACA_{code}")
+        code = ''.join(filter(str.isdigit, self.type.currentText()))
+        self.cb_ff_naca_code  = QCheckBox(f"NACA_{code}")
+
         for cb in (self.cb_ff_latest, self.cb_ff_naca_code):
             lay1.addWidget(cb)
+        self.flow_airfoil_scroll_layout = lay1  # Lưu layout để slot update_flow_airfoil_checkboxes có thể thêm widget vào
         sa1.setWidget(cont1)
         sa1.setFixedHeight(lbl1.fontMetrics().height()*6 + 12) # Hiện 6 dòng check box trong Scroll area
         col1_layout.addWidget(sa1)
@@ -735,7 +756,7 @@ class Ui_group(object):
         # Giữ dict + list cho Airfoil
         self.flow_airfoil_checks = {
             "Latest Design": self.cb_ff_latest,
-            "NACA_{code}"  : self.cb_ff_naca_code,
+            f"NACA_{code}" : self.cb_ff_naca_code, 
         }
         self.current_flow_airfoil = []  # Ban đầu không tick box nào hết
         # Chưa hiểu ======
@@ -779,10 +800,10 @@ class Ui_group(object):
 
         # Giữ dict + list cho Flow fields
         self.flow_field_checks = {
-            "Pressure"   : self.cb_ff_press,
-            "Temperature": self.cb_ff_temp,
-            "Velocity"   : self.cb_ff_vel,
-        }
+                                    "Pressure"   : self.cb_ff_press,
+                                    "Temperature": self.cb_ff_temp,
+                                    "Velocity"   : self.cb_ff_vel,
+                                 }
         self.current_flow_fields = []
         # Chưa hiểu ======
         for name, cb in self.flow_field_checks.items():
@@ -829,11 +850,11 @@ class Ui_group(object):
 
         # Lưu các checkbox vào dict để quản lý
         self.resid_checks = {
-            "CL"                : self.cb_CL,
-            "CD"                : self.cb_CD,
-            "MOMENT_Z"          : self.cb_MZ,
-            "AIRFOIL_THICKNESS" : self.cb_T,
-        }
+                                "CL"                : self.cb_CL,
+                                "CD"                : self.cb_CD,
+                                "MOMENT_Z"          : self.cb_MZ,
+                                "AIRFOIL_THICKNESS" : self.cb_T,
+                            }
         # Khởi tạo list lưu trạng thái
         self.current_resid_sett = []
 
@@ -981,7 +1002,7 @@ class Ui_group(object):
         #
         # Nút Run Optimize
         self.optimize_button = QtWidgets.QPushButton(parent=self.optimize)
-        self.optimize_button.setGeometry(QtCore.QRect(20, 235, 200, 50))
+        self.opt_const_type.currentIndexChanged.connect(self.update_optimize_button_position)
         self.optimize_button.setObjectName("optimize_button")
         self.optimize_button.clicked.connect(self.run_optimization) # Kết nối nút với chức năng
 
@@ -1039,12 +1060,11 @@ class Ui_group(object):
         self.generate.clicked.connect(self.progress_bar)
         self.generate.clicked.connect(self.airfoil)
         self.report.clicked.connect(self.export_report)
-        self.run.clicked.connect(self.sim)
-        self.run.clicked.connect(self.progress_bar)
-        self.run.clicked.connect(lambda: self.report.show())
-        self.run.clicked.connect(lambda: self.optimize.show())
-        self.run.clicked.connect(lambda: self.left_layout.setStretch(2, 1))
-        self.run.clicked.connect(lambda: self.residuals())
+        self.run_button.clicked.connect(self.sim)
+        self.run_button.clicked.connect(lambda: self.report.show())
+        self.run_button.clicked.connect(lambda: self.left_layout.setStretch(2, 1))
+        self.run_button.clicked.connect(lambda: self.residuals())
+        self.run_button.clicked.connect(lambda: self.no_value())
         self.field.activated.connect(self.show)
         #self.cal.clicked.connect(self.compute())
 
@@ -1056,7 +1076,49 @@ class Ui_group(object):
 
     def compute(self):
         self.vel=(self.mach1)
+    
+    def no_value(self): 
+        if self.temp.text().strip() == "":
+            self.temp.setText("273.15") #Nếu không điền giá trị thì để mặc định là 273.15 K
+        if self.pressure.text().strip() == "":
+            self.pressure.setText("101325") #Nếu không điền giá trị thì để mặc định là 101325 Pa
 
+    def show_tooltip_if_comma(self, text):
+        from PyQt6.QtWidgets import QToolTip
+        from PyQt6.QtGui import QFont
+        from PyQt6.QtCore import QPoint
+
+        try:
+            float(text)
+        except ValueError: 
+            QToolTip.setFont(QFont('Arial', 10))
+            if self.mach.hasFocus():
+                return QToolTip.showText(
+                    self.mach.mapToGlobal(QPoint(0, 3)),
+                    "Invalid",
+                    self.mach
+                    )
+            elif self.aoa.hasFocus():
+                return QToolTip.showText(
+                    self.aoa.mapToGlobal(QPoint(0, 3)),
+                    "Invalid",
+                    self.aoa
+                    )
+            elif self.temp.hasFocus():
+                return QToolTip.showText(
+                    self.temp.mapToGlobal(QPoint(0, 3)),
+                    "Invalid",
+                    self.temp
+                    )
+            elif self.pressure.hasFocus():
+                return QToolTip.showText(
+                    self.pressure.mapToGlobal(QPoint(0, 3)),
+                    "Invalid",
+                    self.pressure
+                    )
+        else:
+            from PyQt6.QtWidgets import QToolTip
+            QToolTip.hideText()
 
     def updateTabVisibility(self):
         if self.radio_inviscid.isChecked():
@@ -1067,7 +1129,7 @@ class Ui_group(object):
     def update_mesh(self):
         self.meshing = str
         if self.c_shape.isChecked():
-            self.meshing="c-shape"
+            self.meshing="structural"
         elif self.farfield.isChecked():
             self.meshing="farfield"
         elif self.box.isChecked():
@@ -1114,21 +1176,17 @@ class Ui_group(object):
         self.groupBox.setTitle(_translate("group", "Initial Conditions"))
         self.mach.setPlaceholderText(_translate("group", "Mach number"))
         self.aoa.setPlaceholderText(_translate("group", "AOA"))
-        self.temp.setPlaceholderText(_translate("group", "Temperature"))
-        self.pressure.setPlaceholderText(_translate("group", "Pressure"))
+        self.temp.setPlaceholderText(_translate("group", "Temperature (273.15 by default)"))
+        self.pressure.setPlaceholderText(_translate("group", "Pressure (101325 by default)"))
 
         self.solver.setItemText(0, _translate("group", "EULER"))
-        self.solver.setItemText(1, _translate("group", "NAVIER-STOKES"))
-        self.solver.setItemText(2, _translate("group", "WAVE EQUATION"))
-        self.solver.setItemText(3, _translate("group", "HEAT EQUATION"))
-        self.solver.setItemText(4, _translate("group", "FEM ELASTICITY"))
-        self.solver.setItemText(5, _translate("group", "POISSON EQUATION"))
+        self.solver.setItemText(1, _translate("group", "RANS"))
 
         self.label_3.setText(_translate("group", "Solver"))
         self.label_4.setText(_translate("group", "(Degree)"))
         self.label_5.setText(_translate("group", "(K)"))
         self.label_6.setText(_translate("group", "(Pa)"))
-        self.run.setText(_translate("group", "RUN"))
+        self.run_button.setText(_translate("group", "RUN"))
 
         # Box optimize ===========================================================
 
@@ -1206,25 +1264,85 @@ class Ui_group(object):
             self.type_line.setCompleter(completer)
     
     def airfoil(self): #Generate and post-processing mesh
+        self.generate.setEnabled(False) 
+        self.run_button.setEnabled(False)
+        self.type_of_naca.setEnabled(False)
+        self.type.setEnabled(False)
+        self.type_line.setEnabled(False)
+        self.report.setEnabled(False)
         self.gen=MeshGenerator(group=self.type_of_naca.currentText(), type=self.type.currentText(), mesh_type=self.update_mesh())
         self.gen.mesh_generated.connect(self.on_mesh_generated) #Transmit mesh file data
         self.gen.start()
         self.gen.finished.connect(self.inform_success)
         self.gen.finished.connect(lambda: self.progress.hide())
         self.gen.finished.connect(lambda: self.tabs.setCurrentIndex(0)) 
+        self.gen.finished.connect(lambda: self.generate.setEnabled(True))
+        self.gen.finished.connect(lambda: self.run_button.setEnabled(True))
+        self.gen.finished.connect(lambda: self.type_of_naca.setEnabled(True))
+        self.gen.finished.connect(lambda: self.type.setEnabled(True))
+        self.gen.finished.connect(lambda: self.type_line.setEnabled(True))
         self.gen.finished.connect(lambda: self.tab1.show_mesh(data=self.data["mesh_vtk"], code=''.join(re.findall(r'\d+', self.type.currentText()))))
     def on_mesh_generated(self, data): #Create plug for data from mesh_generated 
         self.data=data
 
     def sim(self): #Run simulation
+        self.run_button.setEnabled(False)
+        self.optimize_button.setEnabled(False)
+        self.type_of_naca.setEnabled(False)
+        self.type.setEnabled(False)
+        self.type_line.setEnabled(False)
+        self.generate.setEnabled(False)
+        self.report.setEnabled(False)
+        self.no_value()
+        self.progress.show()
         code=MeshGenerator.naca_code(group=self.type_of_naca.currentText(),type=self.type.currentText())
         mesh_path = os.path.join(f'NACA_{code}', f"mesh_airfoil_{code}.su2" ) 
-        self.run=Init(solver=self.solver.currentText(),mach=self.mach.text(),aoa=self.aoa.text(),temperature=self.temp.text(),pressure=self.pressure.text(), mesh_path=mesh_path, folder_name=f'NACA_{code}')
-        self.run.start()
-        self.run.finished.connect(self.inform_success)  
-        self.run.finished.connect(lambda: self.progress.hide())
-        self.run.finished.connect(lambda: self.tabs.setCurrentIndex(1)) 
-        self.run.finished.connect(self.show)
+        try:
+        # Kiểm tra và chuyển đổi các giá trị nhập vào (Mach, AoA, Temperature, Pressure)
+            mach_value = float(self.mach.text().strip())  # Kiểm tra Mach
+            aoa_value = float(self.aoa.text().strip())    # Kiểm tra AoA
+            temp_value = float(self.temp.text().strip())  # Kiểm tra Temperature
+            pressure_value = float(self.pressure.text().strip())  # Kiểm tra Pressure
+        
+        # Khởi tạo mô phỏng với các giá trị hợp lệ
+            self.run = Init(
+            solver=self.solver.currentText(),
+            mach=str(mach_value),
+            aoa=str(aoa_value),
+            temperature=str(temp_value),
+            pressure=str(pressure_value),
+            mesh_path=mesh_path,
+            folder_name=f'NACA_{code}'
+        )
+
+        # Bắt đầu mô phỏng
+            self.run.start()
+            self.optimize.show()
+
+        # Kết nối các tín hiệu sau khi mô phỏng hoàn thành
+            self.run.finished.connect(self.inform_success)
+            self.run.finished.connect(lambda: self.progress.hide())
+            self.run.finished.connect(lambda: self.tabs.setCurrentIndex(1))
+            self.run.finished.connect(lambda: self.run_button.setEnabled(True))
+            self.run.finished.connect(lambda: self.optimize_button.setEnabled(True))
+            self.run.finished.connect(lambda: self.type_of_naca.setEnabled(True))
+            self.run.finished.connect(lambda: self.type.setEnabled(True))
+            self.run.finished.connect(lambda: self.type_line.setEnabled(True))
+            self.run.finished.connect(lambda: self.generate.setEnabled(True))
+            self.run.finished.connect(lambda: self.report.setEnabled(True))
+            self.run.finished.connect(self.show)
+        
+        except ValueError:
+            # Nếu có lỗi khi chuyển đổi giá trị, hiển thị thông báo lỗi
+            self.inform_failed()
+            self.progress.setVisible(False)
+            self.run_button.setEnabled(True)
+            self.optimize.hide()
+            self.type_of_naca.setEnabled(True)
+            self.type.setEnabled(True)
+            self.type_line.setEnabled(True)
+            self.generate.setEnabled(True)
+            self.report.hide()
     def show(self):
         code=MeshGenerator.naca_code(group=self.type_of_naca.currentText(),type=self.type.currentText())
         file_path = os.path.join(f'NACA_{code}', 'flow.vtu')
@@ -1252,8 +1370,11 @@ class Ui_group(object):
         return self.dim
 
     def residuals(self): #Plot đồ thị thể hiện tiến trình hội tụ 
+        self.change=QFileSystemWatcher()
         code=MeshGenerator.naca_code(group=self.type_of_naca.currentText(),type=self.type.currentText())
-        self.tab3.plot(history_file_path=os.path.join(f'NACA_{code}', 'history.csv'))      
+        self.history_file_path=os.path.join(f'NACA_{code}', 'history.csv')
+        self.change.addPath(self.history_file_path)
+        self.change.fileChanged.connect(lambda: os.path.join(f'NACA_{code}', 'history.csv'))    
 
     # Box optimize ===========================================================
 
@@ -1263,6 +1384,13 @@ class Ui_group(object):
             self.opt_const_list.show()
         else:
             self.opt_const_list.hide()
+
+    #Thay đổi nút OPTIMIZE khi chọn optimize constraint        
+    def update_optimize_button_position(self):
+        if self.opt_const_type.currentText() == 'NONE':
+            self.optimize_button.setGeometry(QtCore.QRect(20, 235, 200, 50))
+        else:
+            self.optimize_button.setGeometry(QtCore.QRect(225, 235, 80, 50))
     #
     # Thực thi tiến trình tối ưu sau khi nhấn nút "OPTIMIZE"
     def run_optimization(self):
@@ -1354,11 +1482,24 @@ class Ui_group(object):
         self.opt_thread.inform.connect(self.inform_success)  # hiện popup Success!
         self.opt_thread.finished.connect(lambda:self.statusbar.showMessage("Optimization complete"))
         self.opt_thread.finished.connect(lambda:self.progress.hide())
+        self.opt_thread.finished.connect(lambda:self.optimize_button.setEnabled(True))
+        self.opt_thread.finished.connect(lambda:self.run_button.setEnabled(True))
+        self.opt_thread.finished.connect(lambda:self.type.setEnabled(True))
+        self.opt_thread.finished.connect(lambda:self.type_line.setEnabled(True))
+        self.opt_thread.finished.connect(lambda:self.type_of_naca.setEnabled(True))
+        self.opt_thread.finished.connect(lambda:self.generate.setEnabled(True))
+                                         
         # Hiển thị progress bar nếu muốn
         self.progress_bar()
 
         # 5) Bắt đầu thread
         self.opt_thread.start()
+        self.type.setEnabled(False)
+        self.type_of_naca.setEnabled(False)
+        self.type_line.setEnabled(False)
+        self.run_button.setEnabled(False)
+        self.generate.setEnabled(False)
+        self.optimize_button.setEnabled(False)
         #cfg_path = self.opt_thread.initial_conditions()
         #QtWidgets.QMessageBox.information(
         #    self.optimize,
@@ -1375,14 +1516,15 @@ if __name__ == "__main__":
     group = QtWidgets.QMainWindow()
     # Tab Optimize ===============================================================
     for name in [
-        'update_display_list', 'update_display_area', 'update_setting_buttons_visibility',
-        'on_designs_dir_changed', 'update_comp_dsn_checkboxes', 'update_resid_list',
-        'update_comp_list', 'filter_comp_checks',
-        '_on_flow_airfoil_changed', '_on_flow_field_changed',
-        'create_airfoil_comparison_panel', 'create_residual_panel',
-        '_on_residuals_dir_changed' 
-    ]:
-        setattr(Ui_group, name, getattr(opt_tab_support, name))
+                'update_display_list', 'update_display_area', 'update_setting_buttons_visibility',
+                'on_designs_dir_changed', 'update_comp_dsn_checkboxes', 'update_resid_list',
+                'update_comp_list', 'filter_comp_checks', 'filter_flow_airfoil_checks',
+                '_on_flow_airfoil_changed', '_on_flow_field_changed',
+                'create_airfoil_comparison_panel', 'create_residual_panel', 'create_flow_fields_panel',
+                ]:
+        setattr(Ui_group, name, getattr(opt_tab, name))
+        setattr(Ui_group, 'update_flow_airfoil_checkboxes',
+                getattr(opt_tab, 'update_flow_airfoil_checkboxes'))
     # Tab Optimize (end) =========================================================
     for name in ['toggle_constraint_list', 'run_optimization']: setattr(Ui_group, name, getattr(run_optimize, name)) # Optimize khởi chạy
     ui = Ui_group()
