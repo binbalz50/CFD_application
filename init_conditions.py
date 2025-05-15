@@ -21,9 +21,8 @@ class Init(QThread):
         self.initial_conditions()
 
     def initial_conditions(self):
-        if not os.path.exists(self.config_path):
-            with open(self.config_path,'w') as f:
-               f.write(f"""
+        with open(self.config_path,'w') as f:
+            f.write(f"""
 SOLVER={self.solver}
 MATH_PROBLEM= DIRECT
 RESTART_SOL= NO
@@ -101,5 +100,4 @@ SURFACE_ADJ_FILENAME= surface_adjoint
 OUTPUT_WRT_FREQ= 250
 OUTPUT_FILES= (RESTART, PARAVIEW, SURFACE_CSV)
 """)    
-            # Đảm bảo gọi đúng đường dẫn tuyệt đối tới config
         subprocess.run(['SU2_CFD', self.config_file], check=True, cwd=self.folder_name)
