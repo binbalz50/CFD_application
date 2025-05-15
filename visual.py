@@ -41,9 +41,9 @@ class VisualizerWidget(QtWidgets.QWidget):
 
             # Create a line source for seeding the streamlines
             seed = pv.Line(
-                pointa=(-1.0, -0.1, 0.0),
-                pointb=(2.0, 0.1, 0.0),
-                resolution=100
+                pointa=(-1.0, -1, 0.0),
+                pointb=(1.0, 1, 0.0),
+                resolution=31
             )
             streamlines = result.streamlines_from_source(
                 seed,
@@ -65,8 +65,7 @@ class VisualizerWidget(QtWidgets.QWidget):
 
         else:
             self.plot.clear()
-            self.plot.add_mesh(result, scalars=result[field], scalar_bar_args={'title': f"{field} ({dim})" , 'vertical': False}, cmap='jet', show_scalar_bar=True)
+            self.plot.add_mesh(result, scalars=result[field], scalar_bar_args={'title': f"{field} ({dim})" , 'vertical': False, 'position_x': 0.25, 'position_y': 0.02}, cmap='jet', show_scalar_bar=True)
             self.plot.view_xy()
             self.plot.camera.zoom(1.3)
             self.plot.screenshot(rf"NACA_{code}\NACA_{code}_{field}.png",window_size=[1080, 1080])
-
