@@ -8,9 +8,10 @@ class MeshGenerator(QThread):
     mesh_generated = pyqtSignal(dict)
     error_signal = pyqtSignal(str)
     
-    def __init__(self,group,type):
+    def __init__(self,group,type,mesh_type):
         super().__init__()
         self.code = self.naca_code(group,type)
+        self.mesh_type=mesh_type
 
     @staticmethod 
     def naca_code(group=None,type=None):
@@ -29,8 +30,8 @@ class MeshGenerator(QThread):
         else:
             shutil.rmtree(folder_name)
             os.makedirs(folder_name)
-        subprocess.run(['gmshairfoil2d', '--format', 'vtk', '--naca', self.code, '--output', folder_name, '--farfield', '10', '--ext_mesh_size', '0.5'], check=True) 
-        subprocess.run(['gmshairfoil2d', '--format', 'su2', '--naca', self.code, '--output', folder_name, '--farfield', '10', '--ext_mesh_size', '0.5'], check=True)
+        subprocess.run(['gmshairfoil2d', '--format', 'vtk', '--naca', self.code, '--output', folder_name, f'--{self.mesh_type}', '10', '--ext_mesh_size', '0.5'], check=True) 
+        subprocess.run(['gmshairfoil2d', '--format', 'su2', '--naca', self.code, '--output', folder_name, f'--{self.mesh_type}', '10', '--ext_mesh_size', '0.5'], check=True)
         mesh_vtk=os.path.join(folder_name, f'mesh_airfoil_{self.code}.vtk')
         mesh_su2=os.path.join(folder_name, f'mesh_airfoil_{self.code}.su2')
         if os.path.exists(mesh_vtk) and os.path.exists(mesh_su2) and os.path.exists(folder_name):
