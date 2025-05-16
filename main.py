@@ -299,6 +299,7 @@ class Ui_group(object):
                                 padding: 5px;
                                 }
                                 """)
+        self.mach1.textChanged.connect(self.show_tooltip_if_comma)
 
         self.temperature = QtWidgets.QLineEdit(parent=self.refine_tab)
         self.temperature.setGeometry(QtCore.QRect(0, 60, 100, 25))
@@ -315,6 +316,7 @@ class Ui_group(object):
                                 padding: 5px;
                                 }
                                 """)
+        self.temperature.textChanged.connect(self.show_tooltip_if_comma)
 
         self.density = QtWidgets.QLineEdit(parent=self.refine_tab)
         self.density.setGeometry(QtCore.QRect(0, 100, 100, 25))
@@ -322,7 +324,7 @@ class Ui_group(object):
         self.density.setPlaceholderText("Freestresm density")
         self.density_label = QtWidgets.QLabel(parent=self.refine_tab)
         self.density_label.setGeometry(QtCore.QRect(105, 100, 100, 25))
-        self.density_label.setText('(kg/m3)')
+        self.density_label.setText("(kg/m³)")
         self.density.setStyleSheet("""
                                 QLineEdit{
                                 background-color: white;  /* Nền trắng */
@@ -331,6 +333,7 @@ class Ui_group(object):
                                 padding: 5px;
                                 }
                                 """)
+        self.density.textChanged.connect(self.show_tooltip_if_comma)
 
         self.dyn_viscousity = QtWidgets.QLineEdit(parent=self.refine_tab)
         self.dyn_viscousity.setGeometry(QtCore.QRect(0, 140, 100, 25))
@@ -338,7 +341,7 @@ class Ui_group(object):
         self.dyn_viscousity.setPlaceholderText("Dynamic viscosity")
         self.dyn_viscousity_label = QtWidgets.QLabel(parent=self.refine_tab)
         self.dyn_viscousity_label.setGeometry(QtCore.QRect(105, 140, 100, 25))
-        self.dyn_viscousity_label.setText('(kg/ms)')
+        self.dyn_viscousity_label.setText("(N·s/m²)")
         self.dyn_viscousity.setStyleSheet("""
                                 QLineEdit{
                                 background-color: white;  /* Nền trắng */
@@ -347,6 +350,7 @@ class Ui_group(object):
                                 padding: 5px;
                                 }
                                 """)
+        self.dyn_viscousity.textChanged.connect(self.show_tooltip_if_comma)
 
         self.ref_length = QtWidgets.QLineEdit(parent=self.refine_tab)
         self.ref_length.setGeometry(QtCore.QRect(0, 180, 100, 25))
@@ -363,6 +367,7 @@ class Ui_group(object):
                                 padding: 5px;
                                 }
                                 """)
+        self.ref_length.textChanged.connect(self.show_tooltip_if_comma)
 
         self.y_plus = QtWidgets.QLineEdit(parent=self.refine_tab)
         self.y_plus.setGeometry(QtCore.QRect(0, 220, 100, 25))
@@ -1066,7 +1071,10 @@ class Ui_group(object):
         self.run_button.clicked.connect(lambda: self.residuals())
         self.run_button.clicked.connect(lambda: self.no_value())
         self.field.activated.connect(self.show)
-        #self.cal.clicked.connect(self.compute())
+        self.cal.clicked.connect(self.no_value)
+        self.cal.clicked.connect(self.calculate_wall_spacing_and_re)
+        self.cal.clicked.connect(lambda: self.turb())
+        
 
     def toggle_constraint_list(self, text):
         if text == "Select value":
@@ -1074,15 +1082,63 @@ class Ui_group(object):
         else:
             self.opt_const_list.hide()
 
-    def compute(self):
-        self.vel=(self.mach1)
-    
-    def no_value(self): 
-        if self.temp.text().strip() == "":
-            self.temp.setText("273.15") #Nếu không điền giá trị thì để mặc định là 273.15 K
-        if self.pressure.text().strip() == "":
-            self.pressure.setText("101325") #Nếu không điền giá trị thì để mặc định là 101325 Pa
+    ### Calculating Wall Spacing and Re 
+        
 
+    def calculate_wall_spacing_and_re(self):
+        try:
+            mach = float(self.mach1.text().strip())
+            temp = float(self.temperature.text().strip())
+            rho = float(self.density.text().strip())
+            mu = float(self.dyn_viscousity.text().strip())
+            L_ref = float(self.ref_length.text().strip())
+            y_plus = float(self.y_plus.text().strip())
+
+            # Assume freestream velocity from Mach and Temperature (ideal gas)
+            gamma = 1.4
+            R = 287.058  # J/(kg·K) for air
+            a = (gamma * R * temp) ** 0.5  # Speed of sound
+            U_inf = mach * a
+
+            Re = (rho * U_inf * L_ref) / mu
+            C_f = 0.026/((Re)**(1/7))
+            tau_w = 0.5 * rho * U_inf**2 * C_f  
+            u_fric = (tau_w / rho) ** 0.5
+            delta_s = (y_plus * mu) / (rho * u_fric)
+
+            self.Re.setText(f"{Re:.0f}")
+            self.wall.setText(f"{delta_s:.22f}")
+            self.inform_success()
+
+        except ValueError:
+            self.inform_failed()
+        ####
+
+    def turb(self):
+        if self.radio_turbulent.isChecked():
+            if self.mach1.text():
+                self.mach.setText(self.mach1.text())
+            if self.temperature.text():
+                self.temp.setText(self.temperature.text())
+    
+    def no_value_pressure(self):
+        if self.pressure.text().strip() == "":
+                self.pressure.setText("101325") #Nếu không điền giá trị thì để mặc định là 101325 Pa
+
+    def no_value(self): 
+        if self.radio_turbulent.isChecked():
+            if self.temperature.text().strip() == "":
+                self.temperature.setText("288.15") #Nếu không điền giá trị thì để mặc định là 288.15 K
+            if self.density.text().strip() == "":
+                self.density.setText("1.2886") #Nếu không điền giá trị thì để mặc định là 1.2886 kg/m^3
+            if self.dyn_viscousity.text().strip() == "":
+                self.dyn_viscousity.setText("1.853E-5") #Nếu không điền giá trị thì để mặc định là 1.2886 kg/m^3
+        else:
+            if self.temp.text().strip() == "":
+                self.temp.setText("288.15") #Nếu không điền giá trị thì để mặc định là 288.15 K
+            if self.pressure.text().strip() == "":
+                self.pressure.setText("101325") #Nếu không điền giá trị thì để mặc định là 101325 Pa
+        
     def show_tooltip_if_comma(self, text):
         from PyQt6.QtWidgets import QToolTip
         from PyQt6.QtGui import QFont
@@ -1116,6 +1172,37 @@ class Ui_group(object):
                     "Invalid",
                     self.pressure
                     )
+            elif self.mach1.hasFocus():
+                return QToolTip.showText(
+                    self.mach1.mapToGlobal(QPoint(0, 3)),
+                    "Invalid",
+                    self.mach1
+                    )
+            elif self.temperature.hasFocus():
+                return QToolTip.showText(
+                    self.temperature.mapToGlobal(QPoint(0, 3)),
+                    "Invalid",
+                    self.temperature
+                    )
+            elif self.dyn_viscousity.hasFocus():
+                return QToolTip.showText(
+                    self.dyn_viscousity.mapToGlobal(QPoint(0, 3)),
+                    "Invalid",
+                    self.dyn_viscousity
+                    )
+            elif self.density.hasFocus():
+                return QToolTip.showText(
+                    self.density.mapToGlobal(QPoint(0, 3)),
+                    "Invalid",
+                    self.density
+                    )
+            elif self.y_plus.hasFocus():
+                return QToolTip.showText(
+                    self.y_plus.mapToGlobal(QPoint(0, 3)),
+                    "Invalid",
+                    self.y_plus
+                    )
+            
         else:
             from PyQt6.QtWidgets import QToolTip
             QToolTip.hideText()
@@ -1176,7 +1263,7 @@ class Ui_group(object):
         self.groupBox.setTitle(_translate("group", "Initial Conditions"))
         self.mach.setPlaceholderText(_translate("group", "Mach number"))
         self.aoa.setPlaceholderText(_translate("group", "AOA"))
-        self.temp.setPlaceholderText(_translate("group", "Temperature (273.15 by default)"))
+        self.temp.setPlaceholderText(_translate("group", "Temperature (288.15 by default)"))
         self.pressure.setPlaceholderText(_translate("group", "Pressure (101325 by default)"))
 
         self.solver.setItemText(0, _translate("group", "EULER"))
@@ -1294,6 +1381,7 @@ class Ui_group(object):
         self.generate.setEnabled(False)
         self.report.setEnabled(False)
         self.no_value()
+        self.no_value_pressure()
         self.progress.show()
         code=MeshGenerator.naca_code(group=self.type_of_naca.currentText(),type=self.type.currentText())
         mesh_path = os.path.join(f'NACA_{code}', f"mesh_airfoil_{code}.su2" ) 
