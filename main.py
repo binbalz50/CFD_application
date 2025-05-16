@@ -1373,29 +1373,41 @@ class Ui_group(object):
         self.type.setEnabled(False)
         self.type_line.setEnabled(False)
         self.report.setEnabled(False)
-        if self.radio_viscous.isChecked(): 
-            try:
-                wall_spacing=float(self.wall.text().strip())
-                self.gen=MeshGenerator(group=self.type_of_naca.currentText(), type=self.type.currentText(), mesh_type=self.update_mesh(), wall_spacing=f'--first_layer {wall_spacing}')
-            except (ValueError, AttributeError):
-                msg = QtWidgets.QMessageBox()
-                msg.setWindowFlags(msg.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
-                msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
-                msg.setText("Wall spacing is missing.")
-                msg.exec()
-        else:
-            self.gen=MeshGenerator(group=self.type_of_naca.currentText(), type=self.type.currentText(), mesh_type=self.update_mesh(), wall_spacing=str(wall_spacing))
-        self.gen.mesh_generated.connect(self.on_mesh_generated) #Transmit mesh file data
-        self.gen.start()
-        self.gen.finished.connect(self.inform_success)
-        self.gen.finished.connect(lambda: self.progress.hide())
-        self.gen.finished.connect(lambda: self.tabs.setCurrentIndex(0)) 
-        self.gen.finished.connect(lambda: self.generate.setEnabled(True))
-        self.gen.finished.connect(lambda: self.run_button.setEnabled(True))
-        self.gen.finished.connect(lambda: self.type_of_naca.setEnabled(True))
-        self.gen.finished.connect(lambda: self.type.setEnabled(True))
-        self.gen.finished.connect(lambda: self.type_line.setEnabled(True))
-        self.gen.finished.connect(lambda: self.tab1.show_mesh(data=self.data["mesh_vtk"], code=''.join(re.findall(r'\d+', self.type.currentText()))))
+        try:
+            if self.radio_viscous.isChecked():
+                try:
+                    wall_spacing = float(self.wall.text().strip())
+                    self.gen = MeshGenerator(group=self.type_of_naca.currentText(), type=self.type.currentText(), mesh_type=self.update_mesh(), mode="viscos", wall_spacing=wall_spacing)
+                except ValueError:
+                    msg = QtWidgets.QMessageBox()
+                    msg.setWindowFlags(msg.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
+                    msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+                    msg.setText("Wall spacing is missing.")
+                    msg.exec()
+                self.gen = MeshGenerator(group=self.type_of_naca.currentText(), type=self.type.currentText(), mesh_type=self.update_mesh(), mode="viscos", wall_spacing=wall_spacing)    
+            else:
+                self.gen = MeshGenerator(group=self.type_of_naca.currentText(), type=self.type.currentText(), mesh_type=self.update_mesh(), mode="inviscid", wall_spacing="--no_bl")       
+            self.gen.mesh_generated.connect(self.on_mesh_generated) #Transmit mesh file data
+            self.gen.start()
+            self.gen.finished.connect(self.inform_success)
+            self.gen.finished.connect(lambda: self.progress.hide())
+            self.gen.finished.connect(lambda: self.tabs.setCurrentIndex(0)) 
+            self.gen.finished.connect(lambda: self.generate.setEnabled(True))
+            self.gen.finished.connect(lambda: self.run_button.setEnabled(True))
+            self.gen.finished.connect(lambda: self.type_of_naca.setEnabled(True))
+            self.gen.finished.connect(lambda: self.type.setEnabled(True))
+            self.gen.finished.connect(lambda: self.type_line.setEnabled(True))
+            self.gen.finished.connect(lambda: self.tab1.show_mesh(data=self.data["mesh_vtk"], code=''.join(re.findall(r'\d+', self.type.currentText()))))
+        except:
+            self.inform_failed()
+            self.progress.setVisible(False)
+            self.run_button.setEnabled(True)
+            self.optimize.hide()
+            self.type_of_naca.setEnabled(True)
+            self.type.setEnabled(True)
+            self.type_line.setEnabled(True)
+            self.generate.setEnabled(True)
+            self.report.hide()
     def on_mesh_generated(self, data): #Create plug for data from mesh_generated 
         self.data=data
 
@@ -1425,7 +1437,7 @@ class Ui_group(object):
                     msg = QtWidgets.QMessageBox()
                     msg.setWindowFlags(msg.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
                     msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
-                    msg.setText("Reynolds number is missing or invalid.")
+                    msg.setText("Reynolds number is missing.")
                     msg.exec()
                     Reynolds = ""
                 self.run = Init(
