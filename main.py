@@ -20,6 +20,8 @@ def resource_path(relative_path):
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.abspath("."), relative_path)
 class Ui_group(object):
+    def __init__(self):
+        self.turb_kind = str
     def setupUi(self, group):
         group.setObjectName("group")
         group.resize(1920, 1080)
@@ -188,26 +190,25 @@ class Ui_group(object):
         self.generate.setGeometry(QtCore.QRect(10, 150, 200, 50))
         self.generate.setObjectName("generate")
         self.generate.setStyleSheet("""
-            QPushButton {
-                background-color: white;
-                font-size: 16px;
-                color: black;
-            }
+                                    QPushButton {
+                                    background-color: white;
+                                    font-size: 16px;
+                                    color: black;
+                                    }
                                     QPushButton:pressed {
-        background-color: #2980b9;
-        padding-top: 10px;
-        padding-bottom: 6px;
-    }
-
-    QPushButton:disabled {
-        background-color: #95a5a6;
-        color: #ecf0f1;
-    }
+                                    background-color: #2980b9;
+                                    padding-top: 10px;
+                                    padding-bottom: 6px;
+                                    }
+                                    QPushButton:disabled {
+                                    background-color: #95a5a6;
+                                    color: #ecf0f1;
+                                    }
                                     QPushButton:hover {
-                border: 2px solid #0078d7; /* Màu xanh Windows */
-                background-color: #e6f2fb;  /* Nền sáng nhẹ khi hover */
-            }
-        """)
+                                    border: 2px solid #0078d7; /* Màu xanh Windows */
+                                    background-color: #e6f2fb;  /* Nền sáng nhẹ khi hover */
+                                    }
+                                    """)
         
         # Nút REPORT
         self.report = QtWidgets.QPushButton(parent=self.mesh_tab)
@@ -506,6 +507,7 @@ class Ui_group(object):
         self.solver.setGeometry(QtCore.QRect(20, 55, 200, 30))
         self.solver.setEditable(False)
         self.solver.setObjectName("solver")
+        self.solver.addItem("")
         self.solver.addItem("")
         self.solver.addItem("")
         self.solver.setStyleSheet("""
@@ -1072,10 +1074,11 @@ class Ui_group(object):
         self.run_button.clicked.connect(lambda: self.left_layout.setStretch(2, 1))
         self.run_button.clicked.connect(lambda: self.residuals())
         self.run_button.clicked.connect(lambda: self.no_value())
+        self.run_button.clicked.connect(self.turb)
         self.field.activated.connect(self.show)
         self.cal.clicked.connect(self.no_value)
         self.cal.clicked.connect(self.calculate_wall_spacing_and_re)
-        self.cal.clicked.connect(lambda: self.turb())
+        self.cal.clicked.connect(self.turb)
         
 
     def toggle_constraint_list(self, text):
@@ -1218,10 +1221,11 @@ class Ui_group(object):
     def on_sst_checked(self, state):
         if state == Qt.CheckState.Checked.value:
             self.sa.setChecked(False)
-
+            self.turb_kind="SA"
     def on_sa_checked(self, state):
         if state == Qt.CheckState.Checked.value:
             self.sst.setChecked(False)
+            self.turb_kind="SST"
     
     def update_mesh(self):
         self.meshing = str
@@ -1277,7 +1281,8 @@ class Ui_group(object):
         self.pressure.setPlaceholderText(_translate("group", "Pressure (101325 by default)"))
 
         self.solver.setItemText(0, _translate("group", "EULER"))
-        self.solver.setItemText(1, _translate("group", "RANS"))
+        self.solver.setItemText(1, _translate("group", "NAVIER-STOKES"))
+        self.solver.setItemText(2, _translate("group", "RANS"))
 
         self.label_3.setText(_translate("group", "Solver"))
         self.label_4.setText(_translate("group", "(Degree)"))
@@ -1338,6 +1343,7 @@ class Ui_group(object):
         msg.setWindowFlags(msg.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
         msg.setInformativeText('Failed!')
         msg.exec()
+
         
     def airfoil_type(self, group): #Chọn loại airfoil
         if group == "NACA 4 digit":
@@ -1367,7 +1373,18 @@ class Ui_group(object):
         self.type.setEnabled(False)
         self.type_line.setEnabled(False)
         self.report.setEnabled(False)
-        self.gen=MeshGenerator(group=self.type_of_naca.currentText(), type=self.type.currentText(), mesh_type=self.update_mesh())
+        if self.radio_viscous.isChecked(): 
+            try:
+                wall_spacing=float(self.wall.text().strip())
+                self.gen=MeshGenerator(group=self.type_of_naca.currentText(), type=self.type.currentText(), mesh_type=self.update_mesh(), wall_spacing=f'--first_layer {wall_spacing}')
+            except (ValueError, AttributeError):
+                msg = QtWidgets.QMessageBox()
+                msg.setWindowFlags(msg.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
+                msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+                msg.setText("Wall spacing is missing.")
+                msg.exec()
+        else:
+            self.gen=MeshGenerator(group=self.type_of_naca.currentText(), type=self.type.currentText(), mesh_type=self.update_mesh(), wall_spacing=str(wall_spacing))
         self.gen.mesh_generated.connect(self.on_mesh_generated) #Transmit mesh file data
         self.gen.start()
         self.gen.finished.connect(self.inform_success)
@@ -1401,18 +1418,45 @@ class Ui_group(object):
             aoa_value = float(self.aoa.text().strip())    # Kiểm tra AoA
             temp_value = float(self.temp.text().strip())  # Kiểm tra Temperature
             pressure_value = float(self.pressure.text().strip())  # Kiểm tra Pressure
-        
-        # Khởi tạo mô phỏng với các giá trị hợp lệ
-            self.run = Init(
-            solver=self.solver.currentText(),
-            mach=str(mach_value),
-            aoa=str(aoa_value),
-            temperature=str(temp_value),
-            pressure=str(pressure_value),
-            mesh_path=mesh_path,
-            folder_name=f'NACA_{code}'
-        )
-
+            if self.radio_viscous.isChecked():
+                try:
+                    Reynolds = float(self.Re.text().strip())
+                except ValueError:
+                    msg = QtWidgets.QMessageBox()
+                    msg.setWindowFlags(msg.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
+                    msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+                    msg.setText("Reynolds number is missing or invalid.")
+                    msg.exec()
+                    Reynolds = ""
+                self.run = Init(
+                    solver=self.solver.currentText(),
+                    mach=str(mach_value),
+                    aoa=str(aoa_value),
+                    temperature=str(temp_value),
+                    pressure=str(pressure_value),
+                    mesh_path=mesh_path,
+                    folder_name=f'NACA_{code}',
+                    dyn_viscosity=float(self.dyn_viscousity.text().strip()),
+                    Re=Reynolds,
+                    turb_kind=self.turb_kind,
+                    ref_length=float(self.ref_length.text().strip()),
+                    flow=self.radio_viscous.text().strip()
+                    )
+            else:
+                self.run = Init(
+                    solver=self.solver.currentText(),
+                    mach=str(mach_value),
+                    aoa=str(aoa_value),
+                    temperature=str(temp_value),
+                    pressure=str(pressure_value),
+                    mesh_path=mesh_path,
+                    folder_name=f'NACA_{code}',
+                    dyn_viscosity='',
+                    Re='',
+                    turb_kind=None,
+                    ref_length='',
+                    flow=self.radio_inviscid.text().strip()
+                    )
         # Bắt đầu mô phỏng
             self.run.start()
             self.optimize.show()
