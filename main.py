@@ -164,13 +164,14 @@ class Ui_group(object):
         
 
         # Tạo buttons cho inviscid và turbulent
-        self.radio_inviscid = QtWidgets.QRadioButton("Inviscid", parent=self.mesh_tab)
-        self.radio_turbulent = QtWidgets.QRadioButton("Turbulent", parent= self.mesh_tab)
+        self.radio_inviscid = QtWidgets.QRadioButton("Inviscid Flow", parent=self.mesh_tab)
+        self.radio_viscous = QtWidgets.QRadioButton("Viscous Flow", parent= self.mesh_tab)
         self.radio_inviscid.setChecked(True)
-        self.radio_turbulent.setGeometry(QtCore.QRect(120, 110, 100, 50))
-        self.radio_inviscid.setGeometry(QtCore.QRect(20, 110, 100, 50))
-        self.radio_turbulent.toggled.connect(self.updateTabVisibility)
+        self.radio_viscous.setGeometry(QtCore.QRect(120, 110, 100, 50))
+        self.radio_inviscid.setGeometry(QtCore.QRect(15, 110, 100, 50))
+        self.radio_viscous.toggled.connect(self.updateTabVisibility)
         self.radio_inviscid.toggled.connect(self.updateTabVisibility)
+
 
         #Nhóm các nút
         self.mesh_type = QtWidgets.QButtonGroup(self.mesh_tab)
@@ -180,7 +181,7 @@ class Ui_group(object):
         self.c_shape.setChecked(True)
         self.flow_group = QtWidgets.QButtonGroup()
         self.flow_group.addButton(self.radio_inviscid)
-        self.flow_group.addButton(self.radio_turbulent)
+        self.flow_group.addButton(self.radio_viscous)
 
         # Nút GENERATE
         self.generate = QtWidgets.QPushButton(parent=self.mesh_tab)
@@ -538,9 +539,10 @@ class Ui_group(object):
 
         self.sst = QtWidgets.QCheckBox("SST", parent=self.groupBox)
         self.sst.setGeometry(QtCore.QRect(125, 203, 100, 30))
-        
         self.sa = QtWidgets.QCheckBox("Spalart-Allmaras", parent=self.groupBox)
         self.sa.setGeometry(QtCore.QRect(170, 203, 150, 30))
+        self.sst.stateChanged.connect(self.on_sst_checked)
+        self.sa.stateChanged.connect(self.on_sa_checked)
 
 
         # Nút RUN
@@ -1115,7 +1117,7 @@ class Ui_group(object):
         ####
 
     def turb(self):
-        if self.radio_turbulent.isChecked():
+        if self.radio_viscous.isChecked():
             if self.mach1.text():
                 self.mach.setText(self.mach1.text())
             if self.temperature.text():
@@ -1126,7 +1128,7 @@ class Ui_group(object):
                 self.pressure.setText("101325") #Nếu không điền giá trị thì để mặc định là 101325 Pa
 
     def no_value(self): 
-        if self.radio_turbulent.isChecked():
+        if self.radio_viscous.isChecked():
             if self.temperature.text().strip() == "":
                 self.temperature.setText("288.15") #Nếu không điền giá trị thì để mặc định là 288.15 K
             if self.density.text().strip() == "":
@@ -1210,8 +1212,16 @@ class Ui_group(object):
     def updateTabVisibility(self):
         if self.radio_inviscid.isChecked():
             self.mesh_tabs.setTabVisible(1,False)
-        elif self.radio_turbulent.isChecked():
+        elif self.radio_viscous.isChecked():
             self.mesh_tabs.setTabVisible(1,True)
+
+    def on_sst_checked(self, state):
+        if state == Qt.CheckState.Checked.value:
+            self.sa.setChecked(False)
+
+    def on_sa_checked(self, state):
+        if state == Qt.CheckState.Checked.value:
+            self.sst.setChecked(False)
     
     def update_mesh(self):
         self.meshing = str
